@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fff6eb;
+  --foreground: #17120e;
+  --card: #fffdf8;
+  --card-foreground: #17120e;
+  --muted: #f3e4d2;
+  --muted-foreground: #6b5344;
+  --border: #17120e;
+  --accent: #ff4d2e;
+  --accent-foreground: #fffdf8;
+  --brass: #ff4d2e;
+  --destructive: #c42318;
+  --ring: #ff4d2e;
+  --manila: #ffe0b8;
+  --ink: #17120e;
+  --receipt: #ff4d2e;
+  --receipt-fg: #fffdf8;
+  --heat-0: #f3e4d2;
+  --heat-1: #ffc9a8;
+  --heat-2: #ff8a5b;
+  --heat-3: #ff4d2e;
+  --heat-4: #c42318;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-brass: var(--brass);
+  --color-destructive: var(--destructive);
+  --color-ring: var(--ring);
+  --color-manila: var(--manila);
+  --color-ink: var(--ink);
+  --color-receipt: var(--receipt);
+  --color-receipt-fg: var(--receipt-fg);
+  --color-heat-0: var(--heat-0);
+  --color-heat-1: var(--heat-1);
+  --color-heat-2: var(--heat-2);
+  --color-heat-3: var(--heat-3);
+  --color-heat-4: var(--heat-4);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-instrument), ui-serif, Georgia, serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 16px;
+}
+
+.font-display {
+  font-family: var(--font-instrument), ui-serif, Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+}
+
+.soft-card {
+  background: var(--card);
+  border: 1px solid rgba(23, 18, 14, 0.08);
+  box-shadow:
+    0 1px 2px rgba(23, 18, 14, 0.05),
+    0 10px 28px rgba(23, 18, 14, 0.07),
+    0 36px 64px rgba(255, 77, 46, 0.06);
+}
+
+.soft-card-lift {
+  background: var(--card);
+  border: 1px solid rgba(23, 18, 14, 0.08);
+  box-shadow:
+    0 2px 4px rgba(23, 18, 14, 0.05),
+    0 18px 40px rgba(23, 18, 14, 0.1),
+    0 48px 80px rgba(255, 77, 46, 0.08);
+}
+
+.kicker {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+@keyframes cb-confetti {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(140px) rotate(220deg);
+    opacity: 0;
+  }
+}
+
+@keyframes cb-firework {
+  0% {
+    transform: translate(0, 0) scale(0.4);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy)) scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes cb-toast {
+  0% {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  12% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}

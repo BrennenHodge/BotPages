@@ -1,0 +1,329 @@
+import { NextResponse } from "next/server";
+import { getBotByHandle } from "@/lib/bots";
+import { originFromRequest } from "@/lib/origin";
+import { failJson, okJson, stripAt } from "@/lib/pretty";
+import type { Bot } from "@/lib/types";
+import { requireKey, sayTo } from "@/lib/vanity";
+
+export const A2A_PROTOCOL_VERSION = "1.0";
+
+export type A2aSkill = {
+  id: string;
+  name: string;
+  description: string;
+  tags: string[];
+};
+
+export type A2aAgentCard = {
+  protocolVersion: string;
+  name: string;
+  description: string;
+  version: string;
+  url: string;
+  documentationUrl: string;
+  iconUrl?: string;
+  provider: { organization: string; url: string };
+  supportedInterfaces: Array<{
+    url: string;
+    protocolBinding: "JSONRPC" | "HTTP+JSON";
+    protocolVersion: string;
+  }>;
+  capabilities: {
+    streaming: boolean;
+    pushNotifications: boolean;
+    stateTransitionHistory: boolean;
+    extendedAgentCard: boolean;
+  };
+  defaultInputModes: string[];
+  defaultOutputModes: string[];
+  skills: A2aSkill[];
+  securitySchemes: {
+    bearer: { type: "http"; scheme: "bearer"; description: string };
+  };
+  security: Array<{ bearer: string[] }>;
+  handle: string;
+  simple: {
+    number: string;
+    page: string;
+    say: string;
+    did: string;
+    inbox: string;
+    card: string;
+    cardPage: string;
+  };
+};
+
+function slugSkill(raw: string, index: number): string {
+  const slug = raw
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+  return slug || `skill-${index + 1}`;
+}
+
+export function a2aSkills(bot: Bot): A2aSkill[] {
+  const listed = bot.skills
+    .map((name, i) => ({
+      id: slugSkill(name, i),
+      name,
+      description: `${bot.display_name} can ${name.toLowerCase()}.`,
+      tags: [name.toLowerCase().replace(/\s+/g, "-")],
+    }))
+    .filter((s) => s.name);
+
+  if (listed.length > 0) return listed;
+
+  return [
+    {
+      id: "inbox",
+      name: "Inbox",
+      description: `Leave ${bot.display_name} a message at @${bot.handle}.`,
+      tags: ["inbox", "messaging"],
+    },
+  ];
+}
+
+export function a2aUrls(origin: string, handle: string) {
+  const h = stripAt(handle);
+  return {
+    page: `${origin}/@${h}`,
+    card: `${origin}/@${h}/.well-known/agent-card.json`,
+    cardAlias: `${origin}/@${h}/agent-card.json`,
+    cardPage: `${origin}/@${h}/card`,
+    a2a: `${origin}/a2a/@${h}`,
+    say: `${origin}/api/@${h}/say`,
+    did: `${origin}/api/@${h}/did`,
+    inbox: `${origin}/api/@${h}/inbox`,
+    profile: `${origin}/api/@${h}`,
+  };
+}
+
+export function a2aAgentCard(bot: Bot, origin: string): A2aAgentCard {
+  const urls = a2aUrls(origin, bot.handle);
+
+  return {
+    protocolVersion: A2A_PROTOCOL_VERSION,
+    name: bot.display_name,
+    description: bot.bio,
+    version: "1.0.0",
+    url: urls.a2a,
+    documentationUrl: `${origin}/api`,
+    iconUrl: `${origin}/og/${bot.handle}`,
+    provider: {
+      organization: "Bot Pages",
+      url: "https://botpages.co",
+    },
+    supportedInterfaces: [
+      {
+        url: urls.a2a,
+        protocolBinding: "JSONRPC",
+        protocolVersion: A2A_PROTOCOL_VERSION,
+      },
+      {
+        url: urls.a2a,
+        protocolBinding: "HTTP+JSON",
+        protocolVersion: A2A_PROTOCOL_VERSION,
+      },
+    ],
+    capabilities: {
+      streaming: false,
+      pushNotifications: Boolean(bot.webhook_url),
+      stateTransitionHistory: false,
+      extendedAgentCard: false,
+    },
+    defaultInputModes: ["text/plain", "application/json"],
+    defaultOutputModes: ["application/json"],
+    skills: a2aSkills(bot),
+    securitySchemes: {
+      bearer: {
+        type: "http",
+        scheme: "bearer",
+        description: "Bot Pages send-as key (cb_live_…). Same key as POST /api/@handle/say.",
+      },
+    },
+    security: [{ bearer: [] }],
+    handle: `@${bot.handle}`,
+    simple: {
+      number: `@${bot.handle}`,
+      page: urls.page,
+      say: urls.say,
+      did: urls.did,
+      inbox: urls.inbox,
+      card: urls.card,
+      cardPage: urls.cardPage,
+    },
+  };
+}
+
+export function a2aDirectoryCard(origin: string, bots: Bot[]) {
+  return {
+    protocolVersion: A2A_PROTOCOL_VERSION,
+    name: "Bot Pages",
+    description: "Phone numbers for bots. Each @handle has its own A2A Agent Card.",
+    version: "1.0.0",
+    url: origin,
+    documentationUrl: `${origin}/api`,
+    provider: { organization: "Bot Pages", url: "https://botpages.co" },
+    supportedInterfaces: [
+      {
+        url: `${origin}/explore`,
+        protocolBinding: "HTTP+JSON",
+        protocolVersion: A2A_PROTOCOL_VERSION,
+      },
+    ],
+    capabilities: {
+      streaming: false,
+      pushNotifications: false,
+      stateTransitionHistory: false,
+      extendedAgentCard: false,
+    },
+    defaultInputModes: ["text/plain"],
+    defaultOutputModes: ["application/json"],
+    skills: [
+      {
+        id: "directory",
+        name: "Meet bots",
+        description: `Browse public numbers at ${origin}/explore.`,
+        tags: ["directory", "discovery"],
+      },
+    ],
+    handle: null,
+    simple: {
+      explore: `${origin}/explore`,
+      claim: `${origin}/claim`,
+      docs: `${origin}/api`,
+    },
+    bots: bots.map((bot) => ({
+      handle: `@${bot.handle}`,
+      name: bot.display_name,
+      description: bot.bio,
+      card: `${origin}/@${bot.handle}/.well-known/agent-card.json`,
+      a2a: `${origin}/a2a/@${bot.handle}`,
+      page: `${origin}/@${bot.handle}`,
+    })),
+  };
+}
+
+function pretty(data: unknown) {
+  return `${JSON.stringify(data, null, 2)}\n`;
+}
+
+function wantsA2aMedia(req: Request): boolean {
+  const accept = req.headers.get("accept") ?? "";
+  return accept.includes("application/a2a+json");
+}
+
+/** Browsers send text/html first. curl and happy-path send * / * or application/json. */
+export function prefersHtml(req: Request): boolean {
+  const first = (req.headers.get("accept") ?? "").split(",")[0]?.trim() ?? "";
+  return first.startsWith("text/html");
+}
+
+export function agentCardResponse(card: unknown, req: Request) {
+  const type = wantsA2aMedia(req) ? "application/a2a+json" : "application/json";
+  return new NextResponse(pretty(card), {
+    status: 200,
+    headers: {
+      "content-type": `${type}; charset=utf-8`,
+      "cache-control": "public, max-age=60",
+      "access-control-allow-origin": "*",
+    },
+  });
+}
+
+export async function loadPublicBot(handle: string) {
+  const bot = await getBotByHandle(stripAt(handle));
+  if (!bot || !bot.is_public) return null;
+  return bot;
+}
+
+export async function serveBotAgentCard(request: Request, rawHandle: string) {
+  const bot = await loadPublicBot(rawHandle);
+  if (!bot) return failJson(404, "No bot by that name.");
+  return agentCardResponse(a2aAgentCard(bot, originFromRequest(request)), request);
+}
+
+type JsonRpcBody = {
+  jsonrpc?: unknown;
+  method?: unknown;
+  params?: unknown;
+  id?: unknown;
+};
+
+function isJsonRpc(body: unknown): body is JsonRpcBody {
+  return Boolean(body && typeof body === "object" && (body as JsonRpcBody).jsonrpc === "2.0");
+}
+
+function rpcError(id: unknown, code: number, message: string, status = 400) {
+  return new NextResponse(pretty({ jsonrpc: "2.0", id: id ?? null, error: { code, message } }), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
+}
+
+export function a2aCorsHeaders() {
+  return {
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-headers": "Authorization, Content-Type, Accept",
+  };
+}
+
+export async function handleA2aPost(req: Request, rawHandle: string) {
+  const handle = stripAt(rawHandle);
+  const target = await getBotByHandle(handle);
+  if (!target) {
+    return failJson(404, `@${handle} is not a number here.`);
+  }
+
+  const sender = await requireKey(req);
+  if (!sender.ok) return sender.response;
+
+  let body: unknown = {};
+  try {
+    body = await req.json();
+  } catch {
+    body = {};
+  }
+
+  const rpc = isJsonRpc(body) ? body : null;
+  const method = rpc && typeof rpc.method === "string" ? rpc.method : "message/send";
+
+  if (rpc && method !== "message/send" && method !== "tasks/send") {
+    return rpcError(rpc.id, -32601, `Method not found: ${method}`);
+  }
+
+  const result = await sayTo(handle, sender.bot.id, sender.bot.handle, sender.bot.display_name, body);
+  if (!result.ok) {
+    if (rpc) return rpcError(rpc.id, result.status === 400 ? -32602 : -32000, result.error, result.status);
+    return failJson(result.status, result.error);
+  }
+
+  const task = {
+    id: result.id,
+    contextId: result.thread_id,
+    status: { state: "completed" as const },
+    kind: "task" as const,
+    from: result.from,
+    to: result.to,
+    said: result.said,
+  };
+
+  if (rpc) {
+    return new NextResponse(pretty({ jsonrpc: "2.0", id: rpc?.id ?? null, result: task }), {
+      status: 200,
+      headers: { "content-type": "application/json; charset=utf-8", ...a2aCorsHeaders() },
+    });
+  }
+
+  return okJson({
+    from: result.from,
+    to: result.to,
+    said: result.said,
+    id: result.id,
+    thread_id: result.thread_id,
+    status: "completed",
+    task,
+  });
+}

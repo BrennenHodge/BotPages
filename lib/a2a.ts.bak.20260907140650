@@ -1,0 +1,712 @@
+import { NextResponse } from "next/server";
+import { getBotByHandle, getBotById } from "@/lib/bots";
+import { getMessageById, listInbox } from "@/lib/messages";
+import { originFromRequest } from "@/lib/origin";
+import { at, failJson, okJson, stripAt } from "@/lib/pretty";
+import type { Bot, Message } from "@/lib/types";
+import { requireKey, sayTo } from "@/lib/vanity";
+
+export const A2A_PROTOCOL_VERSION = "1.0";
+
+/** ProtoJSON TaskState */
+export const TASK_STATE_COMPLETED = "TASK_STATE_COMPLETED" as const;
+export const TASK_STATE_CANCELED = "TASK_STATE_CANCELED" as const;
+
+/** ProtoJSON Role */
+export const ROLE_USER = "ROLE_USER" as const;
+export const ROLE_AGENT = "ROLE_AGENT" as const;
+
+export type A2aSkill = {
+  id: string;
+  name: string;
+  description: string;
+  tags: string[];
+};
+
+export type A2aPart = { text: string; mediaType?: string };
+
+export type A2aMessage = {
+  messageId: string;
+  contextId?: string;
+  taskId?: string;
+  role: typeof ROLE_USER | typeof ROLE_AGENT | "user" | "agent";
+  parts: A2aPart[];
+  metadata?: Record<string, unknown>;
+};
+
+export type A2aTask = {
+  id: string;
+  contextId: string;
+  status: {
+    state: string;
+    message?: A2aMessage;
+    timestamp?: string;
+  };
+  history?: A2aMessage[];
+  metadata?: Record<string, unknown>;
+};
+
+export type A2aAgentCard = {
+  protocolVersion: string;
+  name: string;
+  description: string;
+  version: string;
+  url: string;
+  documentationUrl: string;
+  iconUrl?: string;
+  provider: { organization: string; url: string };
+  supportedInterfaces: Array<{
+    url: string;
+    protocolBinding: "JSONRPC" | "HTTP+JSON";
+    protocolVersion: string;
+  }>;
+  capabilities: {
+    streaming: boolean;
+    pushNotifications: boolean;
+    stateTransitionHistory: boolean;
+    extendedAgentCard: boolean;
+  };
+  defaultInputModes: string[];
+  defaultOutputModes: string[];
+  skills: A2aSkill[];
+  /** OpenAPI-style flat schemes (compat with published Bot Pages cards). A2A 1.0 nested httpAuthSecurityScheme also documented in comments for future clients. */
+  securitySchemes: {
+    bearer: { type: "http"; scheme: "bearer"; description: string; bearerFormat?: string };
+  };
+  security: Array<{ bearer: string[] }>;
+  handle: string;
+  simple: {
+    number: string;
+    page: string;
+    say: string;
+    did: string;
+    inbox: string;
+    card: string;
+    cardPage: string;
+    wellKnownAgentJson: string;
+  };
+};
+
+function slugSkill(raw: string, index: number): string {
+  const slug = raw
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+  return slug || `skill-${index + 1}`;
+}
+
+export function a2aSkills(bot: Bot): A2aSkill[] {
+  const listed = bot.skills
+    .map((name, i) => ({
+      id: slugSkill(name, i),
+      name,
+      description: `${bot.display_name} can ${name.toLowerCase()}.`,
+      tags: [name.toLowerCase().replace(/\s+/g, "-")],
+    }))
+    .filter((s) => s.name);
+
+  if (listed.length > 0) return listed;
+
+  return [
+    {
+      id: "inbox",
+      name: "Inbox",
+      description: `Leave ${bot.display_name} a message at @${bot.handle}.`,
+      tags: ["inbox", "messaging"],
+    },
+  ];
+}
+
+export function a2aUrls(origin: string, handle: string) {
+  const h = stripAt(handle);
+  return {
+    page: `${origin}/@${h}`,
+    card: `${origin}/@${h}/.well-known/agent-card.json`,
+    cardAlias: `${origin}/@${h}/agent-card.json`,
+    agentJson: `${origin}/@${h}/.well-known/agent.json`,
+    cardPage: `${origin}/@${h}/card`,
+    a2a: `${origin}/a2a/@${h}`,
+    say: `${origin}/api/@${h}/say`,
+    did: `${origin}/api/@${h}/did`,
+    inbox: `${origin}/api/@${h}/inbox`,
+    profile: `${origin}/api/@${h}`,
+  };
+}
+
+export function a2aAgentCard(bot: Bot, origin: string): A2aAgentCard {
+  const urls = a2aUrls(origin, bot.handle);
+
+  return {
+    protocolVersion: A2A_PROTOCOL_VERSION,
+    name: bot.display_name,
+    description: bot.bio,
+    version: "1.0.0",
+    url: urls.a2a,
+    documentationUrl: `${origin}/api`,
+    iconUrl: `${origin}/og/${bot.handle}`,
+    provider: {
+      organization: "Bot Pages",
+      url: "https://botpages.co",
+    },
+    supportedInterfaces: [
+      {
+        url: urls.a2a,
+        protocolBinding: "JSONRPC",
+        protocolVersion: A2A_PROTOCOL_VERSION,
+      },
+      {
+        url: urls.a2a,
+        protocolBinding: "HTTP+JSON",
+        protocolVersion: A2A_PROTOCOL_VERSION,
+      },
+    ],
+    capabilities: {
+      streaming: false,
+      pushNotifications: Boolean(bot.webhook_url),
+      stateTransitionHistory: false,
+      extendedAgentCard: false,
+    },
+    defaultInputModes: ["text/plain", "application/json"],
+    defaultOutputModes: ["application/json"],
+    skills: a2aSkills(bot),
+    // Keep OpenAPI flat `bearer` for published-card compatibility.
+    // A2A 1.0 nested form would be: { httpAuthSecurityScheme: { scheme: "bearer", description: "…" } }
+    securitySchemes: {
+      bearer: {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "Bot Pages API key",
+        description: "Bot Pages send-as key (cb_live_…). Same key as POST /api/@handle/say.",
+      },
+    },
+    security: [{ bearer: [] }],
+    handle: `@${bot.handle}`,
+    simple: {
+      number: `@${bot.handle}`,
+      page: urls.page,
+      say: urls.say,
+      did: urls.did,
+      inbox: urls.inbox,
+      card: urls.card,
+      cardPage: urls.cardPage,
+      wellKnownAgentJson: urls.agentJson,
+    },
+  };
+}
+
+export function a2aDirectoryCard(origin: string, bots: Bot[]) {
+  return {
+    protocolVersion: A2A_PROTOCOL_VERSION,
+    name: "Bot Pages",
+    description: "Phone numbers for bots. Each @handle has its own A2A Agent Card.",
+    version: "1.0.0",
+    url: origin,
+    documentationUrl: `${origin}/api`,
+    provider: { organization: "Bot Pages", url: "https://botpages.co" },
+    supportedInterfaces: [
+      {
+        url: `${origin}/explore`,
+        protocolBinding: "HTTP+JSON" as const,
+        protocolVersion: A2A_PROTOCOL_VERSION,
+      },
+    ],
+    capabilities: {
+      streaming: false,
+      pushNotifications: false,
+      stateTransitionHistory: false,
+      extendedAgentCard: false,
+    },
+    defaultInputModes: ["text/plain"],
+    defaultOutputModes: ["application/json"],
+    skills: [
+      {
+        id: "directory",
+        name: "Meet bots",
+        description: `Browse public numbers at ${origin}/explore.`,
+        tags: ["directory", "discovery"],
+      },
+    ],
+    handle: null,
+    simple: {
+      explore: `${origin}/explore`,
+      claim: `${origin}/claim`,
+      docs: `${origin}/api`,
+      wellKnownAgentJson: `${origin}/.well-known/agent.json`,
+    },
+    bots: bots.map((bot) => ({
+      handle: `@${bot.handle}`,
+      name: bot.display_name,
+      description: bot.bio,
+      card: `${origin}/@${bot.handle}/.well-known/agent-card.json`,
+      agentJson: `${origin}/@${bot.handle}/.well-known/agent.json`,
+      a2a: `${origin}/a2a/@${bot.handle}`,
+      page: `${origin}/@${bot.handle}`,
+    })),
+  };
+}
+
+function pretty(data: unknown) {
+  return `${JSON.stringify(data, null, 2)}\n`;
+}
+
+function wantsA2aMedia(req: Request): boolean {
+  const accept = req.headers.get("accept") ?? "";
+  return accept.includes("application/a2a+json");
+}
+
+/** Browsers send text/html first. curl and happy-path send * / * or application/json. */
+export function prefersHtml(req: Request): boolean {
+  const first = (req.headers.get("accept") ?? "").split(",")[0]?.trim() ?? "";
+  return first.startsWith("text/html");
+}
+
+export function agentCardResponse(card: unknown, req: Request) {
+  const type = wantsA2aMedia(req) ? "application/a2a+json" : "application/json";
+  return new NextResponse(pretty(card), {
+    status: 200,
+    headers: {
+      "content-type": `${type}; charset=utf-8`,
+      "cache-control": "public, max-age=60",
+      "access-control-allow-origin": "*",
+    },
+  });
+}
+
+export async function loadPublicBot(handle: string) {
+  const bot = await getBotByHandle(stripAt(handle));
+  if (!bot || !bot.is_public) return null;
+  return bot;
+}
+
+export async function serveBotAgentCard(request: Request, rawHandle: string) {
+  const bot = await loadPublicBot(rawHandle);
+  if (!bot) return failJson(404, "No bot by that name.");
+  return agentCardResponse(a2aAgentCard(bot, originFromRequest(request)), request);
+}
+
+type JsonRpcBody = {
+  jsonrpc?: unknown;
+  method?: unknown;
+  params?: unknown;
+  id?: unknown;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function isJsonRpc(body: unknown): body is JsonRpcBody {
+  return Boolean(body && typeof body === "object" && (body as JsonRpcBody).jsonrpc === "2.0");
+}
+
+function rpcError(
+  id: unknown,
+  code: number,
+  message: string,
+  status = 400,
+  data?: unknown,
+) {
+  const error: Record<string, unknown> = { code, message };
+  if (data !== undefined) error.data = data;
+  return new NextResponse(pretty({ jsonrpc: "2.0", id: id ?? null, error }), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8", ...a2aCorsHeaders() },
+  });
+}
+
+function rpcResult(id: unknown, result: unknown) {
+  return new NextResponse(pretty({ jsonrpc: "2.0", id: id ?? null, result }), {
+    status: 200,
+    headers: { "content-type": "application/json; charset=utf-8", ...a2aCorsHeaders() },
+  });
+}
+
+export function a2aCorsHeaders() {
+  return {
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-headers": "Authorization, Content-Type, Accept, A2A-Version",
+  };
+}
+
+/** Normalize ProtoJSON ROLE_* and legacy user/agent strings. */
+export function normalizeRole(role: unknown): typeof ROLE_USER | typeof ROLE_AGENT {
+  const raw = typeof role === "string" ? role.trim().toUpperCase() : "";
+  if (raw === "ROLE_AGENT" || raw === "AGENT") return ROLE_AGENT;
+  return ROLE_USER;
+}
+
+export function buildUserMessage(
+  text: string,
+  messageId: string,
+  contextId?: string,
+  taskId?: string,
+): A2aMessage {
+  return {
+    messageId,
+    ...(contextId ? { contextId } : {}),
+    ...(taskId ? { taskId } : {}),
+    role: ROLE_USER,
+    parts: [{ text, mediaType: "text/plain" }],
+  };
+}
+
+export function buildAgentMessage(
+  text: string,
+  messageId: string,
+  contextId?: string,
+  taskId?: string,
+): A2aMessage {
+  return {
+    messageId,
+    ...(contextId ? { contextId } : {}),
+    ...(taskId ? { taskId } : {}),
+    role: ROLE_AGENT,
+    parts: [{ text, mediaType: "text/plain" }],
+  };
+}
+
+export function buildCompletedTask(
+  messageRow: Message,
+  text: string,
+  from: string,
+  to: string,
+): A2aTask {
+  const userMsg = buildUserMessage(text, messageRow.id, messageRow.thread_id, messageRow.id);
+  return {
+    id: messageRow.id,
+    contextId: messageRow.thread_id,
+    status: {
+      state: TASK_STATE_COMPLETED,
+      message: buildAgentMessage(`Delivered to ${to}.`, `ack_${messageRow.id}`, messageRow.thread_id, messageRow.id),
+      timestamp: messageRow.created_at,
+    },
+    history: [userMsg],
+    metadata: {
+      from,
+      to,
+      a2a: true,
+      said: text,
+    },
+  };
+}
+
+/** Extract text from JSON-RPC params.message.parts, message string, or body.text/said/message. */
+export function extractTextFromA2aBody(body: unknown): string | null {
+  if (typeof body === "string" && body.trim()) return body.trim();
+  if (!isRecord(body)) return null;
+
+  for (const key of ["text", "said", "body"] as const) {
+    const value = body[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+
+  if (typeof body.message === "string" && body.message.trim()) return body.message.trim();
+
+  const messageObj = isRecord(body.message)
+    ? body.message
+    : isRecord(body.params) && isRecord((body.params as Record<string, unknown>).message)
+      ? ((body.params as Record<string, unknown>).message as Record<string, unknown>)
+      : null;
+
+  if (messageObj) {
+    if (typeof messageObj.text === "string" && messageObj.text.trim()) return messageObj.text.trim();
+    if (Array.isArray(messageObj.parts)) {
+      const joined = messageObj.parts
+        .map((part) => {
+          if (!isRecord(part)) return "";
+          if (typeof part.text === "string") return part.text;
+          if (typeof part.content === "string") return part.content;
+          return "";
+        })
+        .filter(Boolean)
+        .join("\n")
+        .trim();
+      if (joined) return joined;
+    }
+  }
+
+  if (Array.isArray(body.parts)) {
+    const joined = body.parts
+      .map((part) => (isRecord(part) && typeof part.text === "string" ? part.text : ""))
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+    if (joined) return joined;
+  }
+
+  if (isRecord(body.params)) {
+    const nested = extractTextFromA2aBody(body.params);
+    if (nested) return nested;
+  }
+
+  return null;
+}
+
+function readA2aVersion(req: Request): string {
+  const header = req.headers.get("a2a-version")?.trim();
+  if (header) return header;
+  try {
+    const q = new URL(req.url).searchParams.get("A2A-Version")?.trim();
+    if (q) return q;
+  } catch {
+    /* ignore */
+  }
+  return "0.3";
+}
+
+/** Accept 0.3 and 1.0; reject clearly unsupported majors (e.g. 2.x) with -32009. */
+function versionSupported(version: string): boolean {
+  const v = version.trim();
+  if (!v || v === "0.3" || v === "1.0") return true;
+  const major = Number.parseInt(v.split(".")[0] ?? "", 10);
+  if (Number.isNaN(major)) return false;
+  return major === 0 || major === 1;
+}
+
+const SEND_METHODS = new Set(["message/send", "SendMessage", "tasks/send"]);
+const GET_METHODS = new Set(["tasks/get", "GetTask"]);
+const CANCEL_METHODS = new Set(["tasks/cancel", "CancelTask"]);
+const LIST_METHODS = new Set(["tasks/list", "ListTasks"]);
+const STREAM_METHODS = new Set([
+  "message/stream",
+  "SendStreamingMessage",
+  "tasks/resubscribe",
+  "tasks/sendSubscribe",
+  "SubscribeToTask",
+  "agent/getAuthenticatedExtendedCard",
+  "GetExtendedAgentCard",
+]);
+const PUSH_METHODS = new Set([
+  "tasks/pushNotificationConfig/set",
+  "tasks/pushNotificationConfig/get",
+  "tasks/pushNotificationConfig/list",
+  "tasks/pushNotificationConfig/delete",
+  "CreateTaskPushNotificationConfig",
+  "GetTaskPushNotificationConfig",
+  "ListTaskPushNotificationConfigs",
+  "DeleteTaskPushNotificationConfig",
+]);
+
+function paramsOf(rpc: JsonRpcBody | null, body: unknown): Record<string, unknown> {
+  if (rpc && isRecord(rpc.params)) return rpc.params;
+  if (isRecord(body)) return body;
+  return {};
+}
+
+function taskIdFromParams(params: Record<string, unknown>): string | null {
+  for (const key of ["id", "taskId", "task_id"] as const) {
+    const value = params[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  if (isRecord(params.task) && typeof params.task.id === "string" && params.task.id.trim()) {
+    return params.task.id.trim();
+  }
+  return null;
+}
+
+async function messageInvolvesBot(message: Message, bot: Bot): Promise<boolean> {
+  if (message.recipient_bot_id === bot.id) return true;
+  if (message.sender_bot_id === bot.id) return true;
+  return false;
+}
+
+async function taskFromMessage(message: Message, targetHandle: string): Promise<A2aTask> {
+  const recipient = await getBotById(message.recipient_bot_id);
+  const senderHandle = message.sender_handle ? at(message.sender_handle) : "@unknown";
+  const toHandle = recipient ? at(recipient.handle) : at(targetHandle);
+  return buildCompletedTask(message, message.text, senderHandle, toHandle);
+}
+
+export async function handleA2aPost(req: Request, rawHandle: string) {
+  const handle = stripAt(rawHandle);
+  const target = await getBotByHandle(handle);
+  if (!target) {
+    return failJson(404, `@${handle} is not a number here.`);
+  }
+
+  const a2aVersion = readA2aVersion(req);
+  if (!versionSupported(a2aVersion)) {
+    let bodyPeek: unknown = {};
+    try {
+      bodyPeek = await req.clone().json();
+    } catch {
+      bodyPeek = {};
+    }
+    const rpcPeek = isJsonRpc(bodyPeek) ? bodyPeek : null;
+    return rpcError(
+      rpcPeek?.id ?? null,
+      -32009,
+      `A2A protocol version ${a2aVersion} is not supported. Supported: 0.3, 1.0.`,
+      400,
+      { supportedVersions: ["0.3", "1.0"] },
+    );
+  }
+
+  const sender = await requireKey(req);
+  if (!sender.ok) return sender.response;
+
+  let body: unknown = {};
+  try {
+    body = await req.json();
+  } catch {
+    body = {};
+  }
+
+  const rpc = isJsonRpc(body) ? body : null;
+  const method = rpc && typeof rpc.method === "string" ? rpc.method : "message/send";
+  const params = paramsOf(rpc, body);
+
+  if (rpc && STREAM_METHODS.has(method)) {
+    return rpcError(rpc.id, -32004, `UnsupportedOperationError: ${method} is not supported.`, 400, {
+      name: "UnsupportedOperationError",
+    });
+  }
+
+  if (rpc && PUSH_METHODS.has(method)) {
+    return rpcError(rpc.id, -32003, "PushNotificationNotSupportedError: push notifications are not configured for A2A task updates.", 400, {
+      name: "PushNotificationNotSupportedError",
+    });
+  }
+
+  if (rpc && SEND_METHODS.has(method) === false && GET_METHODS.has(method) === false && CANCEL_METHODS.has(method) === false && LIST_METHODS.has(method) === false) {
+    return rpcError(rpc.id, -32601, `Method not found: ${method}`);
+  }
+
+  // —— GetTask ——
+  if (GET_METHODS.has(method)) {
+    const id = taskIdFromParams(params);
+    if (!id) {
+      return rpc
+        ? rpcError(rpc.id, -32602, "Invalid params: id is required.")
+        : failJson(400, "Task id is required.");
+    }
+    const message = await getMessageById(id);
+    if (!message || !(await messageInvolvesBot(message, target))) {
+      return rpc
+        ? rpcError(rpc.id, -32001, "TaskNotFoundError: task not found.", 404, { name: "TaskNotFoundError" })
+        : failJson(404, "Task not found.");
+    }
+    const task = await taskFromMessage(message, handle);
+    return rpc ? rpcResult(rpc.id, task) : okJson({ task });
+  }
+
+  // —— CancelTask ——
+  if (CANCEL_METHODS.has(method)) {
+    const id = taskIdFromParams(params);
+    if (!id) {
+      return rpc
+        ? rpcError(rpc.id, -32602, "Invalid params: id is required.")
+        : failJson(400, "Task id is required.");
+    }
+    const message = await getMessageById(id);
+    if (!message || !(await messageInvolvesBot(message, target))) {
+      return rpc
+        ? rpcError(rpc.id, -32001, "TaskNotFoundError: task not found.", 404, { name: "TaskNotFoundError" })
+        : failJson(404, "Task not found.");
+    }
+    // Inbox delivery completes immediately — nothing left to cancel.
+    return rpc
+      ? rpcError(rpc.id, -32002, "TaskNotCancelableError: task already completed.", 400, {
+          name: "TaskNotCancelableError",
+        })
+      : failJson(400, "Task already completed and cannot be canceled.");
+  }
+
+  // —— ListTasks ——
+  if (LIST_METHODS.has(method)) {
+    let pageSize = 50;
+    if (typeof params.pageSize === "number" && Number.isFinite(params.pageSize)) {
+      pageSize = Math.min(100, Math.max(1, Math.floor(params.pageSize)));
+    } else if (typeof params.pageSize === "string" && params.pageSize.trim()) {
+      const n = Number.parseInt(params.pageSize, 10);
+      if (!Number.isNaN(n)) pageSize = Math.min(100, Math.max(1, n));
+    }
+
+    const contextId =
+      typeof params.contextId === "string" && params.contextId.trim()
+        ? params.contextId.trim()
+        : undefined;
+
+    // listInbox: with thread → involving bot; without → recipient inbox
+    const rows = await listInbox(target.id, contextId, pageSize);
+    const tasks = await Promise.all(rows.map((row) => taskFromMessage(row, handle)));
+    const result = {
+      tasks,
+      nextPageToken: "",
+      pageSize,
+      totalSize: tasks.length,
+    };
+    return rpc ? rpcResult(rpc.id, result) : okJson(result);
+  }
+
+  // —— SendMessage (default for non-RPC too) ——
+  if (!SEND_METHODS.has(method) && rpc) {
+    return rpcError(rpc.id, -32601, `Method not found: ${method}`);
+  }
+
+  const msg = isRecord(params.message) ? params.message : null;
+  const contextId =
+    (msg && typeof msg.contextId === "string" && msg.contextId.trim() && msg.contextId.trim()) ||
+    (typeof params.contextId === "string" && params.contextId.trim() && params.contextId.trim()) ||
+    (typeof params.thread_id === "string" && params.thread_id.trim() && params.thread_id.trim()) ||
+    undefined;
+  const messageId =
+    (msg && typeof msg.messageId === "string" && msg.messageId.trim() && msg.messageId.trim()) ||
+    (typeof params.messageId === "string" && params.messageId.trim() && params.messageId.trim()) ||
+    undefined;
+
+  const text = extractTextFromA2aBody(body);
+  const baseMeta = isRecord(params.metadata)
+    ? params.metadata
+    : isRecord(body) && isRecord(body.metadata)
+      ? body.metadata
+      : {};
+  const msgMeta = msg && isRecord(msg.metadata) ? msg.metadata : {};
+
+  const sayBody: Record<string, unknown> = {
+    ...(isRecord(body) ? body : {}),
+    ...(text ? { text } : {}),
+    ...(contextId ? { thread_id: contextId } : {}),
+    metadata: {
+      ...baseMeta,
+      ...msgMeta,
+      a2a: true,
+      ...(messageId ? { a2a_message_id: messageId } : {}),
+    },
+  };
+
+  const result = await sayTo(handle, sender.bot.id, sender.bot.handle, sender.bot.display_name, sayBody);
+  if (!result.ok) {
+    if (rpc) return rpcError(rpc.id, result.status === 400 ? -32602 : -32000, result.error, result.status);
+    return failJson(result.status, result.error);
+  }
+
+  const stored = await getMessageById(result.id);
+  const task = stored
+    ? buildCompletedTask(stored, result.said, result.from, result.to)
+    : {
+        id: result.id,
+        contextId: result.thread_id,
+        status: {
+          state: TASK_STATE_COMPLETED,
+          timestamp: new Date().toISOString(),
+        },
+        metadata: { from: result.from, to: result.to, a2a: true, said: result.said },
+      };
+
+  if (rpc) {
+    return rpcResult(rpc.id, task);
+  }
+
+  return okJson({
+    from: result.from,
+    to: result.to,
+    said: result.said,
+    id: result.id,
+    thread_id: result.thread_id,
+    status: "completed",
+    task,
+  });
+}
