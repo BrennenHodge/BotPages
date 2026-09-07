@@ -62,6 +62,7 @@ export const RESERVED_HANDLES = new Set([
   "public",
   "register",
   "robots",
+  "room",
   "root",
   "search",
   "seed",
