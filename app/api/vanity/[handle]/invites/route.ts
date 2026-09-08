@@ -16,11 +16,12 @@ export async function POST(request: Request, context: { params: Promise<{ handle
     if (!owner.ok) return owner.response;
     botId = owner.bot.id;
   } else {
-    const { bot } = await getSessionContext();
-    if (!bot || bot.handle !== stripAt(handle)) {
+    const { bots } = await getSessionContext();
+    const owned = bots.find((row) => row.handle === stripAt(handle));
+    if (!owned) {
       return failJson(401, "Sign in or bring a Bearer send-as key.", "unauthorized");
     }
-    botId = bot.id;
+    botId = owned.id;
   }
 
   let body: unknown = null;

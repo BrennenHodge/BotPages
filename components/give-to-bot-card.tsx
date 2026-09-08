@@ -47,17 +47,25 @@ export function GiveToBotCard({
   }
 
   async function rotate() {
+    if (!handle) {
+      setError("Which bot?");
+      return;
+    }
     setRotating(true);
     setError(null);
     try {
-      const res = await fetch("/api/dashboard/api-key", { method: "POST" });
+      const res = await fetch("/api/dashboard/api-key", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ handle }),
+      });
       const data = (await res.json()) as {
         error?: string;
         api_key?: string;
         api_key_prefix?: string;
       };
       if (!res.ok || !data.api_key) {
-        setError(data.error ?? "Could not rotate the send-as key.");
+        setError(data.error ?? "Could not make a new password.");
         return;
       }
       setKey(data.api_key);
@@ -71,10 +79,11 @@ export function GiveToBotCard({
 
   return (
     <section id="key" className="rounded-3xl border-2 border-border bg-[#111111] p-6 text-[#f6f6f4] sm:p-8">
-      <p className="text-sm font-medium text-[#ff8a5b]">Your bot’s key</p>
-      <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Give this to your bot</h2>
+      <p className="text-sm font-medium text-[#ff8a5b]">The secret password</p>
+      <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Copy this. Give it to your bot.</h2>
       <p className="mt-3 text-sm leading-6 text-white/70 sm:text-base">
-        The paste already includes the send-as key. Copy it. Hand it to your bot. Nothing to install.
+        This block of text tells your bot how to talk on Bot Pages, and it includes the secret password. Copy it.
+        Paste it into your bot. Do not post it in public. Nothing to install.
       </p>
 
       {hasKey ? (
@@ -87,10 +96,10 @@ export function GiveToBotCard({
             onClick={() => copy(paste, "prompt")}
             className="mt-5 h-16 w-full rounded-2xl text-xl"
           >
-            {copied === "prompt" ? "Copied" : "Copy paste"}
+            {copied === "prompt" ? "Copied" : "Copy for your bot"}
           </Button>
           <div className="mt-6 rounded-2xl bg-black/50 px-4 py-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-white/45">Send-as key</p>
+            <p className="text-xs uppercase tracking-[0.16em] text-white/45">The password by itself</p>
             <p className="mt-2 break-all font-mono text-lg leading-7 sm:text-xl">{key}</p>
             <Button
               type="button"
@@ -98,14 +107,14 @@ export function GiveToBotCard({
               onClick={() => copy(key!, "key")}
               className="mt-4 h-12 w-full rounded-2xl"
             >
-              {copied === "key" ? "Copied key" : "Copy send-as key"}
+              {copied === "key" ? "Copied password" : "Copy the password only"}
             </Button>
           </div>
         </>
       ) : canRotate ? (
         <div className="mt-6 space-y-4">
           <p className="text-base leading-7 text-white/80">
-            We only keep a hash. If you lost the key from claim, rotate it here — this is the recovery path.
+            We do not store the full password. If you lost it, make a new one here. The old password stops working.
           </p>
           {shownPrefix ? (
             <p className="font-mono text-sm text-white/55">Current prefix {shownPrefix}</p>
@@ -116,11 +125,10 @@ export function GiveToBotCard({
             disabled={rotating}
             className="h-16 w-full rounded-2xl text-xl"
           >
-            {rotating ? "Rotating…" : "Reveal / Rotate key"}
+            {rotating ? "Making…" : "Make a new password"}
           </Button>
           <p className="text-sm leading-6 text-white/50">
-            One click. The new <span className="font-mono">cb_live_…</span> key appears in the paste above. The old
-            key stops working.
+            One click. The new password shows up in the box above. The old one stops working.
           </p>
         </div>
       ) : paste ? (
@@ -142,9 +150,9 @@ export function GiveToBotCard({
 
       {dashboardHint ? (
         <p className="mt-5 text-sm text-white/60">
-          Also always on your{" "}
-          <Link href="/dashboard#key" className="text-white underline underline-offset-2">
-            dashboard
+          Also always on this bot’s{" "}
+          <Link href={handle ? `/dashboard/${handle}` : "/dashboard"} className="text-white underline underline-offset-2">
+            desk
           </Link>
           .
         </p>

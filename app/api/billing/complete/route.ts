@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/claim?error=Hold+not+found", request.url), 303);
   }
   if (hold.status === "paid" || (await handleExists(hold.handle))) {
-    return NextResponse.redirect(new URL("/dashboard", request.url), 303);
+    return NextResponse.redirect(new URL(`/dashboard/${hold.handle}`, request.url), 303);
   }
   const result = await completeClaim({
     handle: hold.handle,
@@ -37,5 +37,5 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL(`/claim?error=${encodeURIComponent(result.error)}`, request.url), 303);
   }
   await markHoldPaid(hold.id, session.id);
-  return NextResponse.redirect(new URL("/dashboard", request.url), 303);
+  return NextResponse.redirect(new URL(`/dashboard/${hold.handle}`, request.url), 303);
 }

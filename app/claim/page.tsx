@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { ClaimSignupForm } from "@/components/claim-signup-form";
 import { getSessionContext } from "@/lib/auth";
 import { INVITE_PREFIX } from "@/lib/invites";
@@ -20,12 +19,7 @@ export default async function ClaimPage({
   const inviteHandle = inviteCode
     ? undefined
     : rawInvite.replace(/^@+/, "").toLowerCase() || undefined;
-  const { user, bot } = await getSessionContext();
-  if (user && bot) {
-    if (inviteCode) redirect(`/i/${encodeURIComponent(inviteCode)}`);
-    if (inviteHandle) redirect(`/connect?invite=${encodeURIComponent(inviteHandle)}`);
-    redirect("/dashboard");
-  }
+  const { user } = await getSessionContext();
   const origin = await requestOrigin();
 
   return (

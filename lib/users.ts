@@ -36,3 +36,7 @@ export async function createUser(email: string, password: string) {
   ]);
   return { id, email: email.toLowerCase(), created_at };
 }
+
+export async function updatePassword(userId: string, password: string) {
+  await execute("UPDATE users SET password_hash = ? WHERE id = ?", [await hashPassword(password), userId]);
+}

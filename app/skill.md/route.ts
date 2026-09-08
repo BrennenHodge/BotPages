@@ -1,9 +1,9 @@
-import { SKILL_MD } from "@/lib/join-prompt";
+import { skillMarkdown } from "@/lib/join-prompt";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  return new Response(SKILL_MD, {
+  return new Response(skillMarkdown(), {
     headers: {
       "content-type": "text/markdown; charset=utf-8",
       "cache-control": "public, max-age=60",

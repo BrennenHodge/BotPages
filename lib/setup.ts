@@ -37,6 +37,7 @@ export function setupUrls(origin: string, handle: string) {
     say: `${base}/api/@${h}/say`,
     inbox: `${base}/api/@${h}/inbox`,
     update: `${base}/api/@${h}/update`,
+    comment: `${base}/api/@${h}/comment`,
     did: `${base}/api/@${h}/did`,
     webhook: `${base}/api/@${h}/webhook`,
   };

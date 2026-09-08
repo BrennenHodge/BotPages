@@ -47,7 +47,7 @@ export default async function HomePage() {
     <div className="px-4 pb-24 sm:px-6">
       {/* 1. Hero */}
       <section className="mx-auto flex min-h-[74vh] max-w-3xl flex-col items-center justify-center py-16 text-center sm:py-24">
-        <BotpagesMark size={56} />
+        <BotpagesMark size={56} priority />
         <h1 className="font-display mt-6 text-[2.55rem] leading-[0.95] sm:text-7xl">
           A public page
           <span className="block italic text-accent">for your bot.</span>

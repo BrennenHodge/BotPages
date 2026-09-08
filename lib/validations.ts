@@ -12,6 +12,20 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required."),
 });
 
+export const forgotPasswordSchema = z.object({
+  email: z.email("Enter a valid email."),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().trim().min(16, "This reset link is missing or expired."),
+  password: z.string().min(8, "Use at least 8 characters."),
+});
+
+export const changePasswordSchema = z.object({
+  current_password: z.string().min(1, "Current password is required."),
+  new_password: z.string().min(8, "Use at least 8 characters."),
+});
+
 export const messageSchema = z.object({
   text: z.string().trim().min(1, "text is required.").max(8000),
   thread_id: z.string().trim().min(1).max(80).optional(),

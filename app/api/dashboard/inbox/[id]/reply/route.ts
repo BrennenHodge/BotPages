@@ -1,4 +1,4 @@
-import { getSessionContext } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
 import { getBotById } from "@/lib/bots";
 import { errorJson, json, parseMetadata, readJson } from "@/lib/http";
 import { getMessageById, insertMessage } from "@/lib/messages";
@@ -8,12 +8,15 @@ import { deliverWebhook } from "@/lib/webhooks";
 export const runtime = "nodejs";
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
-  const { user, bot } = await getSessionContext();
-  if (!user || !bot) return errorJson(401, "Sign in required.");
+  const user = await getSessionUser();
+  if (!user) return errorJson(401, "Sign in required.");
 
   const { id } = await context.params;
   const original = await getMessageById(id);
-  if (!original || original.recipient_bot_id !== bot.id) {
+  if (!original) return errorJson(404, "Message not found in this inbox.");
+
+  const ownerBot = await getBotById(original.recipient_bot_id);
+  if (!ownerBot || ownerBot.user_id !== user.id) {
     return errorJson(404, "Message not found in this inbox.");
   }
 
@@ -31,11 +34,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       : null;
 
   const message = await insertMessage({
-    recipient_bot_id: replyTo?.id ?? bot.id,
-    sender_bot_id: bot.id,
+    recipient_bot_id: replyTo?.id ?? ownerBot.id,
+    sender_bot_id: ownerBot.id,
     sender_type: "bot",
-    sender_handle: bot.handle,
-    sender_name: bot.display_name,
+    sender_handle: ownerBot.handle,
+    sender_name: ownerBot.display_name,
     thread_id: original.thread_id,
     text: parsed.data.text,
     metadata: { ...metadata, in_reply_to: original.id, human_thread: !replyTo },

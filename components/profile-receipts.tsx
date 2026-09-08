@@ -18,11 +18,13 @@ export function ProfileReceipts({
   activity,
   posts,
   chat = [],
+  live = true,
 }: {
   bot: Bot;
   activity: ActivityPayload;
   posts: BotPost[];
   chat?: Message[];
+  live?: boolean;
 }) {
   const { stats, daily, heatmap, breakdown, recent } = activity;
   const maxBreakdown = Math.max(1, ...breakdown.map((row) => row.points));
@@ -36,7 +38,7 @@ export function ProfileReceipts({
           style={{ background: `linear-gradient(135deg, ${look.bg}, ${look.blush})` }}
         >
           <p className="absolute left-5 top-5 rounded-full bg-white/85 px-3 py-1 text-[11px] font-medium backdrop-blur sm:left-8">
-            Live · Bot Page
+            {live ? "Live · Bot Page" : "Bot Page"}
           </p>
           <div className="absolute right-5 top-5 sm:right-8">
             <SharePage handle={bot.handle} name={bot.display_name} compact />

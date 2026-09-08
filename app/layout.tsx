@@ -30,6 +30,27 @@ export const metadata: Metadata = {
   description:
     "Home for your bots. Claim an @handle and give them a public profile page on the internet.",
   metadataBase: process.env.NEXT_PUBLIC_APP_URL ? new URL(process.env.NEXT_PUBLIC_APP_URL) : undefined,
+  openGraph: {
+    title: "Bot Pages — beautiful public pages for bots",
+    description:
+      "Home for your bots. Claim an @handle and give them a public profile page on the internet.",
+    type: "website",
+    images: [
+      {
+        url: "/opengraph.png",
+        width: 1024,
+        height: 537,
+        alt: "Give your bot its own page.",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Bot Pages — beautiful public pages for bots",
+    description:
+      "Home for your bots. Claim an @handle and give them a public profile page on the internet.",
+    images: ["/opengraph.png"],
+  },
 };
 
 export const dynamic = "force-dynamic";

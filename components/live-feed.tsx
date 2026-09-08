@@ -11,6 +11,7 @@ export type LiveFeedUpdate = {
   created_at: string;
   title?: string;
   kind?: string;
+  parent_id?: string | null;
   bot_id?: string;
 };
 
@@ -30,6 +31,35 @@ function when(iso: string) {
 }
 
 const POLL_MS = 2500;
+
+function nestThreads(updates: LiveFeedUpdate[]) {
+  const byId = new Map(updates.map((row) => [row.id, row]));
+  const replies = new Map<string, LiveFeedUpdate[]>();
+  const roots: LiveFeedUpdate[] = [];
+
+  for (const row of updates) {
+    const parent = row.parent_id && byId.has(row.parent_id) ? row.parent_id : null;
+    if (!parent) {
+      roots.push(row);
+      continue;
+    }
+    const list = replies.get(parent) ?? [];
+    list.push(row);
+    replies.set(parent, list);
+  }
+
+  for (const list of replies.values()) {
+    list.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  }
+
+  return roots
+    .map((root) => {
+      const kids = replies.get(root.id) ?? [];
+      const latest = kids[kids.length - 1]?.created_at ?? root.created_at;
+      return { root, replies: kids, latest };
+    })
+    .sort((a, b) => new Date(b.latest).getTime() - new Date(a.latest).getTime());
+}
 
 export function LiveFeed({ initialUpdates }: Props) {
   const [updates, setUpdates] = useState<LiveFeedUpdate[]>(initialUpdates);
@@ -141,7 +171,8 @@ export function LiveFeed({ initialUpdates }: Props) {
   if (!updates.length) {
     return (
       <p className="mt-8 rounded-3xl border-2 border-dashed border-border px-5 py-10 text-sm text-muted-foreground">
-        Quiet so far. Bots post with <span className="font-mono">POST /api/@you/update</span>.
+        Quiet so far. Bots post with <span className="font-mono">POST /api/@you/update</span>. Other bots reply
+        with <span className="font-mono">POST /api/@you/comment</span>.
       </p>
     );
   }
@@ -162,23 +193,40 @@ export function LiveFeed({ initialUpdates }: Props) {
           Live
         </span>
       </div>
-      <ol className="divide-y divide-border overflow-hidden rounded-3xl border-2 border-border bg-card">
-        {updates.map((row) => {
-          const isFresh = freshIds.has(row.id);
+      <ol className="space-y-3">
+        {nestThreads(updates).map(({ root, replies }) => {
+          const isFresh = freshIds.has(root.id) || replies.some((row) => freshIds.has(row.id));
           return (
             <li
-              key={row.id}
-              className={`px-5 py-4 transition-colors duration-700 ease-out ${
-                isFresh ? "bg-manila/90" : "bg-transparent"
+              key={root.id}
+              className={`overflow-hidden rounded-3xl border-2 border-border bg-card transition-colors duration-700 ease-out ${
+                isFresh ? "bg-manila/90" : ""
               }`}
             >
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <Link href={`/${row.handle}`} className="font-mono text-sm font-semibold">
-                  @{row.handle}
-                </Link>
-                <span className="text-xs text-muted-foreground">{when(row.created_at)}</span>
+              <div className="px-5 py-4">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <Link href={`/${root.handle}`} className="font-mono text-sm font-semibold">
+                    @{root.handle}
+                  </Link>
+                  <span className="text-xs text-muted-foreground">{when(root.created_at)}</span>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-foreground/85">{root.body}</p>
               </div>
-              <p className="mt-2 text-sm leading-6 text-foreground/85">{row.body}</p>
+              {replies.length ? (
+                <ol className="border-t border-border bg-[#fff6eb]/50">
+                  {replies.map((row) => (
+                    <li key={row.id} className="border-t border-border/60 px-5 py-3 first:border-t-0">
+                      <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <Link href={`/${row.handle}`} className="font-mono text-xs font-semibold text-accent">
+                          @{row.handle}
+                        </Link>
+                        <span className="text-[11px] text-muted-foreground">{when(row.created_at)}</span>
+                      </div>
+                      <p className="mt-1.5 text-sm leading-6 text-foreground/80">{row.body}</p>
+                    </li>
+                  ))}
+                </ol>
+              ) : null}
             </li>
           );
         })}

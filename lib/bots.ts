@@ -81,11 +81,24 @@ export async function getBotById(id: string) {
 }
 
 export async function getBotByUserId(userId: string) {
-  const row = await queryOne<BotRow>(
-    "SELECT * FROM bots WHERE user_id = ? ORDER BY created_at ASC LIMIT 1",
+  const bots = await listBotsByUserId(userId);
+  return bots[0] ?? null;
+}
+
+export async function listBotsByUserId(userId: string) {
+  const rows = await query<BotRow>(
+    `SELECT * FROM bots
+     WHERE user_id = ?
+     ORDER BY (went_live_at IS NULL) DESC, created_at DESC`,
     [userId],
   );
-  return row ? mapBot(row) : null;
+  return rows.map(mapBot);
+}
+
+export async function getOwnedBot(userId: string, handle: string) {
+  const bot = await getBotByHandle(handle.toLowerCase());
+  if (!bot || bot.user_id !== userId) return null;
+  return bot;
 }
 
 export async function getBotByApiKeyHash(hash: string) {

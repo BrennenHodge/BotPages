@@ -64,10 +64,70 @@ async function main() {
   const b = await claim(handleB);
   console.log(`   /${a.handle} and /${b.handle}`);
 
-  const waitingPage = await fetch(`${BASE}/${b.handle}`);
+  console.log("1b. One login, two bots");
+  const fleet1 = `hp-f1-${suffix}`.slice(0, 24);
+  const fleet2 = `hp-f2-${suffix}`.slice(0, 24);
+  const fleetEmail = `fleet-${suffix}@example.test`;
+  const firstFleet = await fetch(`${BASE}/api/auth/signup`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      handle: fleet1,
+      email: fleetEmail,
+      password: "happy-path-pass",
+      display_name: fleet1,
+    }),
+  });
+  const firstFleetData = (await firstFleet.json()) as Signup;
+  if (firstFleet.status !== 201 || !firstFleetData.api_key) {
+    throw new Error(`Fleet claim 1 failed: ${firstFleet.status} ${JSON.stringify(firstFleetData)}`);
+  }
+  const fleetCookie =
+    (typeof firstFleet.headers.getSetCookie === "function" ? firstFleet.headers.getSetCookie() : [])
+      .find((row) => row.startsWith("cb_session="))
+      ?.split(";")[0] ?? "";
+  if (!fleetCookie) throw new Error("Fleet claim 1 did not set a session cookie");
+  const secondFleet = await fetch(`${BASE}/api/auth/signup`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: fleetCookie },
+    body: JSON.stringify({
+      handle: fleet2,
+      email: fleetEmail,
+      password: "session",
+      display_name: fleet2,
+    }),
+  });
+  const secondFleetData = (await secondFleet.json()) as Signup;
+  if (secondFleet.status !== 201 || secondFleetData.bot?.handle !== fleet2) {
+    throw new Error(`Fleet claim 2 failed: ${secondFleet.status} ${JSON.stringify(secondFleetData)}`);
+  }
+  const latestCookie =
+    (typeof secondFleet.headers.getSetCookie === "function" ? secondFleet.headers.getSetCookie() : [])
+      .find((row) => row.startsWith("cb_session="))
+      ?.split(";")[0] ?? fleetCookie;
+  const me = await fetch(`${BASE}/api/auth/me`, { headers: { cookie: latestCookie } });
+  const meData = (await me.json()) as { bots?: Array<{ handle: string }> };
+  const meHandles = (meData.bots ?? []).map((row) => row.handle);
+  if (!meHandles.includes(fleet1) || !meHandles.includes(fleet2)) {
+    throw new Error(`Expected two bots on one login, got ${JSON.stringify(meData)}`);
+  }
+  const roster = await fetch(`${BASE}/dashboard`, { headers: { cookie: latestCookie } });
+  const rosterHtml = await roster.text();
+  if (roster.status !== 200 || !rosterHtml.includes("Roster") || !rosterHtml.includes(`@${fleet1}`) || !rosterHtml.includes(`@${fleet2}`)) {
+    throw new Error("Dashboard roster missing both bots");
+  }
+  console.log(`   /${fleet1} and /${fleet2} on one login`);
+
+  const waitingPage = await fetch(`${BASE}/${b.handle}`, { headers: { cookie: latestCookie } });
   const waitingHtml = await waitingPage.text();
-  if (waitingPage.status !== 200 || !waitingHtml.includes("Waiting for your bot")) {
-    throw new Error(`Expected waiting state after claim: ${waitingPage.status}`);
+  if (
+    waitingPage.status !== 200 ||
+    waitingHtml.includes("Waiting for your bot") ||
+    !waitingHtml.includes(`@${b.handle}`) ||
+    !waitingHtml.includes("Bot Page") ||
+    !waitingHtml.includes("Connect this bot")
+  ) {
+    throw new Error(`Expected profile page after claim: ${waitingPage.status}`);
   }
 
   console.log("2. A → B message");
@@ -366,6 +426,21 @@ async function main() {
   if (!feedTexts.includes("happy-path voice update") || !feedTexts.includes("happy-path did on the feed")) {
     throw new Error(`Feed missing updates: ${JSON.stringify(firehose.data)}`);
   }
+  const comment = await post<{ ok?: boolean; text?: string; on?: string }>(
+    `/api/@${a.handle}/comment`,
+    { on: voice.data.id, text: "happy-path reply on the thread" },
+    a.apiKey,
+  );
+  if (comment.status !== 201 || comment.data.text !== "happy-path reply on the thread" || comment.data.on !== voice.data.id) {
+    throw new Error(`Comment failed: ${comment.status} ${JSON.stringify(comment.data)}`);
+  }
+  const firehose2 = await get<{ updates?: Array<{ text?: string; body?: string; parent_id?: string | null }> }>("/api/feed");
+  const threaded = (firehose2.data.updates ?? []).some(
+    (row) => (row.text ?? row.body) === "happy-path reply on the thread" && row.parent_id === voice.data.id,
+  );
+  if (!threaded) {
+    throw new Error(`Feed missing comment: ${JSON.stringify(firehose2.data)}`);
+  }
   const feedPage = await fetch(`${BASE}/feed`);
   const feedHtml = await feedPage.text();
   if (feedPage.status !== 200 || !feedHtml.includes("What bots are saying") || !feedHtml.includes("happy-path voice update")) {
@@ -380,6 +455,8 @@ async function main() {
   const connect = await fetch(`${BASE}/connect`);
   const skill = await fetch(`${BASE}/skill.md`);
   const portfolio = await fetch(`${BASE}/u/brennen`);
+  const forgot = await fetch(`${BASE}/forgot`);
+  const loginPage = await fetch(`${BASE}/login`);
   if (home.status !== 200) throw new Error(`home ${home.status}`);
   const homeHtml = await home.text();
   if (
@@ -410,11 +487,15 @@ async function main() {
   if (ways.status !== 200) throw new Error(`ways ${ways.status}`);
   if (connect.status !== 200) throw new Error(`connect ${connect.status}`);
   if (skill.status !== 200) throw new Error(`skill.md ${skill.status}`);
+  if (forgot.status !== 200) throw new Error(`forgot ${forgot.status}`);
+  if (loginPage.status !== 200) throw new Error(`login ${loginPage.status}`);
   const howHtml = await how.text();
   const aboutHtml = await about.text();
   const waysHtml = await ways.text();
   const connectHtml = await connect.text();
   const skillText = await skill.text();
+  const forgotHtml = await forgot.text();
+  const loginHtml = await loginPage.text();
   if (!howHtml.includes("Your bot gets a number") || !howHtml.includes("Agent Card")) {
     throw new Error("how-it-works is missing the simple story");
   }
@@ -451,8 +532,14 @@ async function main() {
   ) {
     throw new Error("bot listing is missing invite / add CTAs");
   }
+  if (!forgotHtml.includes("Forgot password") || !forgotHtml.includes("Send reset link")) {
+    throw new Error("forgot page is missing the reset form");
+  }
+  if (!loginHtml.includes("Forgot password?")) {
+    throw new Error("login is missing forgot-password");
+  }
   if (
-    !connectHtml.includes("Give this to your bot") ||
+    !connectHtml.includes("Give your bot its password") ||
     !connectHtml.includes("Sign in to get your paste") ||
     !connectHtml.includes("/login?next=/dashboard")
   ) {
@@ -464,7 +551,10 @@ async function main() {
     !skillText.includes("Agent Card URL") ||
     !skillText.includes("Do not install a CLI") ||
     !skillText.includes("/update") ||
-    !skillText.includes("/inbox/{id}/ack")
+    !skillText.includes("/inbox/{id}/ack") ||
+    !skillText.includes("/comment") ||
+    !skillText.includes("emails_sent") ||
+    !skillText.includes("last resort")
   ) {
     throw new Error("skill.md is missing the connect-now steps");
   }

@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 10;
 
 export const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS users (
@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS posts (
   title TEXT NOT NULL,
   body TEXT NOT NULL,
   kind TEXT NOT NULL DEFAULT 'update',
+  parent_id TEXT,
   created_at TEXT NOT NULL
 );
 
@@ -99,6 +100,7 @@ CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_bot_id, create
 CREATE UNIQUE INDEX IF NOT EXISTS idx_events_dedupe ON events(bot_id, dedupe_key);
 CREATE INDEX IF NOT EXISTS idx_events_bot_time ON events(bot_id, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_posts_bot ON posts(bot_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_posts_parent ON posts(parent_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_a2a_tasks_bot ON a2a_tasks(bot_id, updated_at);
 CREATE INDEX IF NOT EXISTS idx_a2a_tasks_context ON a2a_tasks(context_id, updated_at);
 CREATE INDEX IF NOT EXISTS idx_a2a_tasks_state ON a2a_tasks(bot_id, state);
@@ -133,6 +135,18 @@ CREATE TABLE IF NOT EXISTS invites (
 
 CREATE INDEX IF NOT EXISTS idx_invites_from ON invites(from_bot_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_invites_redeemed ON invites(from_bot_id, redeemed_by_bot_id);
+
+CREATE TABLE IF NOT EXISTS password_resets (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TEXT NOT NULL,
+  used_at TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_password_resets_hash ON password_resets(token_hash);
 `;
 
 export const MESSAGE_COLUMN_MIGRATIONS = [
@@ -144,4 +158,24 @@ export const BOT_COLUMN_MIGRATIONS = [
   { name: "website_url", sql: "ALTER TABLE bots ADD COLUMN website_url TEXT" },
   { name: "x_handle", sql: "ALTER TABLE bots ADD COLUMN x_handle TEXT" },
   { name: "went_live_at", sql: "ALTER TABLE bots ADD COLUMN went_live_at TEXT" },
+] as const;
+
+export const POST_COLUMN_MIGRATIONS = [
+  { name: "parent_id", sql: "ALTER TABLE posts ADD COLUMN parent_id TEXT" },
+] as const;
+
+export const TABLE_MIGRATIONS = [
+  {
+    name: "password_resets",
+    sql: `CREATE TABLE IF NOT EXISTS password_resets (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TEXT NOT NULL,
+  used_at TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_password_resets_hash ON password_resets(token_hash);`,
+  },
 ] as const;

@@ -55,6 +55,7 @@ export type BotPost = {
   title: string;
   body: string;
   kind: string;
+  parent_id: string | null;
   created_at: string;
 };
 

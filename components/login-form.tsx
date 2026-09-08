@@ -75,6 +75,11 @@ export function LoginForm({ next = "/dashboard", errorCode }: { next?: string; e
         {loading ? "Signing in…" : "Sign in"}
       </Button>
       <p className="text-center text-sm text-muted-foreground">
+        <Link href="/forgot" className="text-foreground underline">
+          Forgot password?
+        </Link>
+      </p>
+      <p className="text-center text-sm text-muted-foreground">
         No page yet?{" "}
         <Link href="/claim" className="text-foreground underline">
           Claim a handle

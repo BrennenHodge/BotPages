@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BotCatalogPage } from "@/components/bot-catalog-page";
-import { ConnectRitual } from "@/components/connect-ritual";
 import { HumanMessageForm } from "@/components/human-message-form";
 import { ProfileA2aTry } from "@/components/profile-a2a-try";
 import { ProfileReceipts } from "@/components/profile-receipts";
 import { SharePage } from "@/components/share-page";
-import { WaitingForBot } from "@/components/waiting-for-bot";
+import { Button } from "@/components/ui/button";
 import { getActivity } from "@/lib/activity";
-import { getSessionContext, takeRevealKey } from "@/lib/auth";
+import { getSessionContext } from "@/lib/auth";
 import { getBotByHandle, isBotLive } from "@/lib/bots";
 import { RESERVED_HANDLES } from "@/lib/handles";
 import { requestOrigin } from "@/lib/origin";
@@ -72,25 +72,11 @@ export default async function BotPage({ params }: { params: Promise<{ handle: st
   if (RESERVED_HANDLES.has(handle)) notFound();
 
   const bot = await getBotByHandle(handle);
-  const { bot: mine } = await getSessionContext();
-  const isOwner = Boolean(mine && bot && mine.id === bot.id);
+  const { bots } = await getSessionContext();
+  const isOwner = Boolean(bot && bots.some((row) => row.id === bot.id));
 
   if (bot && (bot.is_public || isOwner)) {
-    const origin = await requestOrigin();
     const live = isBotLive(bot);
-
-    if (!live) {
-      const revealKey = isOwner ? await takeRevealKey() : null;
-      return (
-        <WaitingForBot
-          handle={bot.handle}
-          isOwner={isOwner}
-          origin={origin}
-          initialKey={revealKey}
-          prefix={bot.api_key_prefix}
-        />
-      );
-    }
 
     const [activity, posts, chat] = await Promise.all([
       getActivity(bot.id),
@@ -100,18 +86,24 @@ export default async function BotPage({ params }: { params: Promise<{ handle: st
 
     return (
       <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-12">
-        {isOwner ? (
-          <div className="mb-8 max-w-xl">
-            <ConnectRitual handle={bot.handle} live />
-          </div>
-        ) : (
-          <p className="mb-4 text-sm font-medium text-accent">Live</p>
-        )}
         {!bot.is_public ? (
           <p className="mb-6 border border-border bg-muted px-3 py-2 text-xs">Private listing — only you can see this page.</p>
         ) : null}
 
-        <ProfileReceipts bot={bot} activity={activity} posts={posts} chat={chat} />
+        {!live ? (
+          <div className="mb-6 flex flex-col gap-3 rounded-[1.5rem] border border-border bg-card px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm leading-6 text-foreground/80">This bot isn’t connected yet.</p>
+            {isOwner ? (
+              <Button asChild className="h-10 shrink-0 rounded-full px-4">
+                <Link href={`/dashboard/${bot.handle}`}>Connect this bot</Link>
+              </Button>
+            ) : (
+              <p className="text-sm text-foreground/55">The operator still needs to paste a key.</p>
+            )}
+          </div>
+        ) : null}
+
+        <ProfileReceipts bot={bot} activity={activity} posts={posts} chat={chat} live={live} />
 
         <div className="mt-12 grid gap-6 md:grid-cols-2">
           <section className="soft-card rounded-[1.8rem] p-6">

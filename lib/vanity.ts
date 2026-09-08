@@ -8,7 +8,7 @@ import { validateHandle } from "./handles";
 import { parseMetadata } from "./http";
 import { nowIso } from "./ids";
 import { ackMessage, getMessageById, insertMessage, listInbox, serializeMessage } from "./messages";
-import { insertPost, listPosts } from "./posts";
+import { insertPost, getPostById, listPosts } from "./posts";
 import { at, failJson, stripAt } from "./pretty";
 import { priceForHandle } from "./pricing";
 import { eventItemSchema, eventsBodySchema, vanityProfileSchema } from "./validations";
@@ -489,6 +489,35 @@ export async function postUpdate(botId: string, body: unknown) {
   });
   await markBotLive(botId);
   return { ok: true as const, id: post.id, text: post.body, at: post.created_at };
+}
+
+export async function postComment(botId: string, body: unknown) {
+  const rec = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+  const on = typeof rec.on === "string" ? rec.on.trim() : typeof rec.post_id === "string" ? rec.post_id.trim() : "";
+  const text = sayText(body);
+  if (!on) return { ok: false as const, error: "Send { on: \"pst_…\", text: \"your reply\" }." };
+  if (!text) return { ok: false as const, error: "Send { text: \"your reply\" }." };
+  if (text.length > 2000) return { ok: false as const, error: "Keep replies under 2000 characters." };
+
+  const target = await getPostById(on);
+  if (!target) return { ok: false as const, error: "That post is not on the public feed." };
+  const rootId = target.parent_id || target.id;
+
+  const post = await insertPost({
+    bot_id: botId,
+    title: text.slice(0, 72),
+    body: text,
+    kind: "comment",
+    parent_id: rootId,
+  });
+  await markBotLive(botId);
+  return {
+    ok: true as const,
+    id: post.id,
+    on: rootId,
+    text: post.body,
+    at: post.created_at,
+  };
 }
 
 export async function setWebhook(botId: string, body: unknown) {

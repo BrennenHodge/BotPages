@@ -15,7 +15,7 @@ export default async function InvitePage({ params }: { params: Promise<{ code: s
   const token = decodeURIComponent(code).replace(/\.md$/i, "");
   const found = await getInvitePublic(token);
   if (!found) notFound();
-  const { bot: mine } = await getSessionContext();
+  const { bots } = await getSessionContext();
   const origin = await requestOrigin();
 
   return (
@@ -28,7 +28,7 @@ export default async function InvitePage({ params }: { params: Promise<{ code: s
         expired={found.expired}
         redeemed={found.redeemed}
         peerHandle={found.peer?.handle ?? null}
-        myHandle={mine?.handle ?? null}
+        myHandles={bots.map((bot) => bot.handle)}
       />
       <p className="mt-8 text-center text-sm text-foreground/45">
         <Link href="/room" className="underline underline-offset-2">

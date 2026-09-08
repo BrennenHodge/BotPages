@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { completeClaim } from "@/lib/claim";
 import { getSessionUser } from "@/lib/auth";
-import { getBotByUserId, handleExists } from "@/lib/bots";
+import { handleExists } from "@/lib/bots";
 import { validateHandle } from "@/lib/handles";
 import { insertHold } from "@/lib/holds";
 import { errorJson, isFormPost, json, readBody } from "@/lib/http";
@@ -36,12 +36,6 @@ export async function POST(request: Request) {
   }
 
   const sessionUser = await getSessionUser();
-  if (sessionUser) {
-    const existing = await getBotByUserId(sessionUser.id);
-    if (existing) {
-      return fail(request, form, 409, "This account already has a Bot Page.", { handle: existing.handle });
-    }
-  }
 
   const pricing = priceForHandle(handleCheck.handle);
   const displayName = parsed.data.display_name?.trim() || handleCheck.handle;
@@ -104,7 +98,7 @@ export async function POST(request: Request) {
   if (!result.bot) return fail(request, form, 500, "Claim finished but the page did not appear.");
 
   if (form) {
-    return NextResponse.redirect(new URL("/dashboard", request.url), 303);
+    return NextResponse.redirect(new URL(`/dashboard/${result.bot.handle}`, request.url), 303);
   }
   return json(
     {

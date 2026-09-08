@@ -20,7 +20,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return errorJson(404, "Hold not found.");
   }
   if (hold.status === "paid") {
-    if (form) return NextResponse.redirect(new URL("/dashboard", request.url), 303);
+    if (form) return NextResponse.redirect(new URL(`/dashboard/${hold.handle}`, request.url), 303);
     return json({ ok: true, already: true });
   }
   if (new Date(hold.expires_at).getTime() < Date.now()) {
@@ -39,7 +39,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return errorJson(409, result.error);
   }
   await markHoldPaid(hold.id);
-  if (form) return NextResponse.redirect(new URL("/dashboard", request.url), 303);
+  if (form) return NextResponse.redirect(new URL(`/dashboard/${result.bot?.handle ?? hold.handle}`, request.url), 303);
   return json({
     user: result.user,
     bot: result.bot,

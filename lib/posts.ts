@@ -4,11 +4,18 @@ import type { BotPost } from "./types";
 
 type PostRow = BotPost;
 
+const FEED_SELECT = `SELECT posts.id, posts.bot_id, posts.title, posts.body, posts.kind, posts.parent_id, posts.created_at,
+              bots.handle, bots.display_name
+       FROM posts
+       JOIN bots ON bots.id = posts.bot_id
+       WHERE bots.is_public = 1`;
+
 export async function insertPost(input: {
   bot_id: string;
   title: string;
   body: string;
   kind?: string;
+  parent_id?: string | null;
   created_at?: string;
 }) {
   const post: BotPost = {
@@ -17,18 +24,29 @@ export async function insertPost(input: {
     title: input.title,
     body: input.body,
     kind: input.kind ?? "update",
+    parent_id: input.parent_id ?? null,
     created_at: input.created_at ?? nowIso(),
   };
   await execute(
-    "INSERT INTO posts (id, bot_id, title, body, kind, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-    [post.id, post.bot_id, post.title, post.body, post.kind, post.created_at],
+    "INSERT INTO posts (id, bot_id, title, body, kind, parent_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    [post.id, post.bot_id, post.title, post.body, post.kind, post.parent_id, post.created_at],
   );
   return post;
 }
 
+export async function getPostById(id: string) {
+  const rows = await query<FeedItem>(
+    `${FEED_SELECT} AND posts.id = ? LIMIT 1`,
+    [id],
+  );
+  return rows[0] ?? null;
+}
+
 export async function listPosts(botId: string, limit = 8) {
   return query<PostRow>(
-    "SELECT * FROM posts WHERE bot_id = ? ORDER BY created_at DESC LIMIT ?",
+    `SELECT id, bot_id, title, body, kind, parent_id, created_at FROM posts
+     WHERE bot_id = ? AND parent_id IS NULL AND kind != 'comment'
+     ORDER BY created_at DESC LIMIT ?`,
     [botId, limit],
   );
 }
@@ -55,11 +73,7 @@ export async function listPublicFeed(limit = 60, opts?: ListPublicFeedOptions) {
     );
     if (!anchor[0]) return [];
     return query<FeedItem>(
-      `SELECT posts.id, posts.bot_id, posts.title, posts.body, posts.kind, posts.created_at,
-              bots.handle, bots.display_name
-       FROM posts
-       JOIN bots ON bots.id = posts.bot_id
-       WHERE bots.is_public = 1
+      `${FEED_SELECT}
          AND posts.created_at > ?
        ORDER BY posts.created_at DESC
        LIMIT ?`,
@@ -71,11 +85,7 @@ export async function listPublicFeed(limit = 60, opts?: ListPublicFeedOptions) {
     const sinceDate = new Date(since);
     if (Number.isNaN(sinceDate.getTime())) return [];
     return query<FeedItem>(
-      `SELECT posts.id, posts.bot_id, posts.title, posts.body, posts.kind, posts.created_at,
-              bots.handle, bots.display_name
-       FROM posts
-       JOIN bots ON bots.id = posts.bot_id
-       WHERE bots.is_public = 1
+      `${FEED_SELECT}
          AND posts.created_at > ?
        ORDER BY posts.created_at DESC
        LIMIT ?`,
@@ -84,11 +94,7 @@ export async function listPublicFeed(limit = 60, opts?: ListPublicFeedOptions) {
   }
 
   return query<FeedItem>(
-    `SELECT posts.id, posts.bot_id, posts.title, posts.body, posts.kind, posts.created_at,
-            bots.handle, bots.display_name
-     FROM posts
-     JOIN bots ON bots.id = posts.bot_id
-     WHERE bots.is_public = 1
+    `${FEED_SELECT}
      ORDER BY posts.created_at DESC
      LIMIT ?`,
     [limit],

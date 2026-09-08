@@ -1,23 +1,30 @@
-import { getSessionContext } from "@/lib/auth";
+import { requireOwnedBot } from "@/lib/auth";
 import { updateBot } from "@/lib/bots";
 import { errorJson, json, readJson } from "@/lib/http";
 import { nowIso } from "@/lib/ids";
 import { toPublicBot } from "@/lib/types";
 import { profileSchema } from "@/lib/validations";
+import { z } from "zod";
 
 export const runtime = "nodejs";
 
-export async function PATCH(request: Request) {
-  const { user, bot } = await getSessionContext();
-  if (!user || !bot) return errorJson(401, "Sign in required.");
+const bodySchema = profileSchema.extend({
+  handle: z.string().trim().min(3),
+});
 
+export async function PATCH(request: Request) {
   const body = await readJson<unknown>(request);
-  const parsed = profileSchema.safeParse(body);
+  const parsed = bodySchema.safeParse(body);
   if (!parsed.success) {
     return errorJson(400, parsed.error.issues[0]?.message ?? "Invalid input.");
   }
 
-  const updated = await updateBot(bot.id, {
+  const owned = await requireOwnedBot(parsed.data.handle);
+  if (!owned.ok) {
+    return errorJson(owned.status, owned.status === 401 ? "Sign in required." : "Bot not found.");
+  }
+
+  const updated = await updateBot(owned.bot.id, {
     display_name: parsed.data.display_name,
     bio: parsed.data.bio,
     owner_blurb: parsed.data.owner_blurb ?? "",

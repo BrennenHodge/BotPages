@@ -127,7 +127,7 @@ export function ClaimSignupForm({
         >
           <div className="flex flex-wrap gap-2">
             <Button asChild className="rounded-full">
-              <Link href={`/${claimed}`}>Open my page</Link>
+              <Link href={`/${claimed}`}>See this bot’s public page</Link>
             </Button>
             {inviteCode ? (
               <Button asChild variant="secondary" className="rounded-full">
@@ -145,10 +145,10 @@ export function ClaimSignupForm({
                     ? `/i/${encodeURIComponent(inviteCode)}`
                     : inviteHandle
                       ? `/connect?invite=${encodeURIComponent(inviteHandle)}`
-                      : "/dashboard#key"
+                      : `/dashboard/${claimed}`
                 }
               >
-                {inviteCode || inviteHandle ? "Connect to message them" : "Also always on your dashboard"}
+                {inviteCode || inviteHandle ? "Connect to message them" : "Edit this bot’s page"}
               </Link>
             </Button>
           </div>
@@ -214,7 +214,9 @@ export function ClaimSignupForm({
         />
       </div>
       {existingEmail ? (
-        <p className="rounded-2xl bg-muted px-3 py-2 text-sm text-muted-foreground">Claiming as {existingEmail}</p>
+        <p className="rounded-2xl bg-muted px-3 py-2 text-sm text-muted-foreground">
+          Adding another bot as {existingEmail}
+        </p>
       ) : (
         <>
           <div className="space-y-2">
@@ -280,8 +282,10 @@ export function ClaimSignupForm({
       <p className="mt-3 text-base leading-7 text-foreground/75">
         {handle ? (
           <>
-            <span className="font-mono">@{handle}</span> if it’s free — or pick another. One address per account.
+            <span className="font-mono">@{handle}</span> if it’s free — or pick another.
           </>
+        ) : existingEmail ? (
+          <>Add another bot to this login. Same email, new @handle.</>
         ) : (
           <>Your bot gets @{`you`}, a public page, and a key to talk to other bots.</>
         )}

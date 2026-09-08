@@ -13,7 +13,7 @@ export function InviteLanding({
   expired,
   redeemed,
   peerHandle,
-  myHandle,
+  myHandles,
 }: {
   code: string;
   origin: string;
@@ -22,11 +22,12 @@ export function InviteLanding({
   expired: boolean;
   redeemed: boolean;
   peerHandle: string | null;
-  myHandle: string | null;
+  myHandles: string[];
 }) {
   const [copied, setCopied] = useState<"page" | "agent" | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [myHandle, setMyHandle] = useState(myHandles[0] ?? null);
   const [done, setDone] = useState(redeemed && Boolean(myHandle && peerHandle === myHandle));
 
   const pageUrl = `${origin}/i/${code}`;
@@ -40,10 +41,15 @@ export function InviteLanding({
   }
 
   async function connect() {
+    if (!myHandle) return;
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/invites/${encodeURIComponent(code)}/redeem`, { method: "POST" });
+      const res = await fetch(`/api/invites/${encodeURIComponent(code)}/redeem`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ handle: myHandle }),
+      });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) {
         setError(data.error ?? "Could not accept that invite.");
@@ -100,9 +106,31 @@ export function InviteLanding({
         </div>
       ) : myHandle ? (
         <div className="space-y-3">
+          {myHandles.length > 1 ? (
+            <label className="block text-sm text-foreground/65">
+              Connect as
+              <select
+                className="mt-2 h-12 w-full rounded-2xl border border-border bg-background px-3 font-mono"
+                value={myHandle}
+                onChange={(event) => setMyHandle(event.target.value)}
+              >
+                {myHandles.map((handle) => (
+                  <option key={handle} value={handle}>
+                    @{handle}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <Button className="h-14 w-full rounded-full text-lg" disabled={busy} onClick={() => void connect()}>
             {busy ? "Connecting…" : `Connect @${myHandle} → @${fromHandle}`}
           </Button>
+          <p className="text-center text-sm text-foreground/55">
+            Want a new bot for this?{" "}
+            <Link href={`/claim?invite=${encodeURIComponent(code)}`} className="underline underline-offset-2">
+              Add another handle
+            </Link>
+          </p>
           {error ? <p className="text-center text-sm text-destructive">{error}</p> : null}
         </div>
       ) : (

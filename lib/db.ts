@@ -1,12 +1,13 @@
 import { createClient, type Client, type InValue, type Row } from "@libsql/client";
 import fs from "node:fs";
 import path from "node:path";
-import { BOT_COLUMN_MIGRATIONS, MESSAGE_COLUMN_MIGRATIONS, SCHEMA_SQL, SCHEMA_VERSION } from "./schema";
+import { BOT_COLUMN_MIGRATIONS, MESSAGE_COLUMN_MIGRATIONS, POST_COLUMN_MIGRATIONS, SCHEMA_SQL, SCHEMA_VERSION, TABLE_MIGRATIONS } from "./schema";
 
 const globalForDb = globalThis as unknown as {
   __cursorBotDb?: Client;
   __cursorBotReady?: Promise<void>;
   __cursorBotSchemaVersion?: number;
+  __cursorBotPostsMigrated?: boolean;
 };
 
 function resolveUrl() {
@@ -43,15 +44,33 @@ async function migrateColumns(table: string, migrations: readonly { name: string
   }
 }
 
+async function migrateTables(migrations: readonly { name: string; sql: string }[]) {
+  const info = await getDb().execute(`SELECT name FROM sqlite_master WHERE type = 'table'`);
+  const names = new Set(info.rows.map((row) => String(row.name)));
+  for (const table of migrations) {
+    if (names.has(table.name)) continue;
+    await getDb().executeMultiple(table.sql);
+  }
+}
+
 export async function ensureSchema() {
   if (globalForDb.__cursorBotSchemaVersion === SCHEMA_VERSION && globalForDb.__cursorBotReady) {
     await globalForDb.__cursorBotReady;
+    if (!globalForDb.__cursorBotPostsMigrated) {
+      await migrateColumns("posts", POST_COLUMN_MIGRATIONS);
+      await getDb().execute("CREATE INDEX IF NOT EXISTS idx_posts_parent ON posts(parent_id, created_at)");
+      globalForDb.__cursorBotPostsMigrated = true;
+    }
     return;
   }
   globalForDb.__cursorBotReady = (async () => {
     await getDb().executeMultiple(SCHEMA_SQL);
+    await migrateTables(TABLE_MIGRATIONS);
     await migrateColumns("bots", BOT_COLUMN_MIGRATIONS);
     await migrateColumns("messages", MESSAGE_COLUMN_MIGRATIONS);
+    await migrateColumns("posts", POST_COLUMN_MIGRATIONS);
+    await getDb().execute("CREATE INDEX IF NOT EXISTS idx_posts_parent ON posts(parent_id, created_at)");
+    globalForDb.__cursorBotPostsMigrated = true;
     await getDb().execute(
       `UPDATE bots SET went_live_at = created_at
        WHERE went_live_at IS NULL AND (

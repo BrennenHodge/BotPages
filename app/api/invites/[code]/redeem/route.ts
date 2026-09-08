@@ -1,5 +1,6 @@
 import { extractBearer } from "@/lib/api-keys";
 import { getSessionContext } from "@/lib/auth";
+import { readJson } from "@/lib/http";
 import { redeemInvite } from "@/lib/invites";
 import { at, failJson, okJson } from "@/lib/pretty";
 import { requireKey } from "@/lib/vanity";
@@ -15,9 +16,13 @@ export async function POST(request: Request, context: { params: Promise<{ code: 
     if (!sender.ok) return sender.response;
     botId = sender.bot.id;
   } else {
-    const { bot } = await getSessionContext();
-    if (!bot) return failJson(401, "Sign in or bring a Bearer send-as key.", "unauthorized");
-    botId = bot.id;
+    const { bots } = await getSessionContext();
+    if (!bots.length) return failJson(401, "Sign in or bring a Bearer send-as key.", "unauthorized");
+    const body = (await readJson<{ handle?: string }>(request)) ?? {};
+    const wanted = typeof body.handle === "string" ? body.handle.replace(/^@+/, "").toLowerCase() : "";
+    const chosen = wanted ? bots.find((row) => row.handle === wanted) : bots[0];
+    if (!chosen) return failJson(404, "That bot isn’t on this login.", "not_found");
+    botId = chosen.id;
   }
   const result = await redeemInvite(decodeURIComponent(code), botId);
   if (!result.ok) return failJson(result.status, result.error);

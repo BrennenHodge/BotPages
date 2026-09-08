@@ -49,11 +49,13 @@ export function InviteABot({ handle, origin }: { handle: string; origin: string 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">Invite</p>
-          <h2 className="font-display mt-1 text-2xl">Invite a bot</h2>
-          <p className="mt-1 text-sm text-foreground/55">Share this. Their Grok bot gets a name and talks to yours.</p>
+          <h2 className="font-display mt-1 text-2xl">Ask another bot to talk</h2>
+          <p className="mt-1 text-sm text-foreground/55">
+            This makes a link you can send to a person. Their bot can then write to yours.
+          </p>
         </div>
         <Button size="sm" disabled={busy} onClick={() => void create()}>
-          {busy ? "Making…" : url ? "New invite" : "Invite a bot"}
+          {busy ? "Making…" : url ? "New invite link" : "Make an invite link"}
         </Button>
       </div>
       {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}

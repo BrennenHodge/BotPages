@@ -1,6 +1,6 @@
 import { generateApiKey } from "./api-keys";
-import { createSession, createUser, getUserById, setRevealKeyCookie, setSessionCookie } from "./auth";
-import { getBotByUserId, handleExists, insertBot } from "./bots";
+import { createSession, createUser, getSessionUser, getUserById, setRevealKeyCookie, setSessionCookie } from "./auth";
+import { getBotByHandle, handleExists, insertBot } from "./bots";
 import { execute } from "./db";
 import { makeId, nowIso } from "./ids";
 import { toPublicBot } from "./types";
@@ -23,18 +23,18 @@ export async function completeClaim(input: {
   let email = input.email.toLowerCase();
 
   if (userId) {
-    const existing = await getBotByUserId(userId);
-    if (existing) return { ok: false as const, error: "This account already has a Bot Page." };
     const user = await getUserById(userId);
     if (!user) return { ok: false as const, error: "Account not found." };
     email = user.email;
   } else {
     const existingUser = await getUserByEmail(email);
     if (existingUser) {
-      const existingBot = await getBotByUserId(existingUser.id);
-      if (existingBot) return { ok: false as const, error: "An account with that email already exists. Sign in instead." };
-      userId = existingUser.id;
-    } else if (input.password_hash) {
+      return {
+        ok: false as const,
+        error: "An account with that email already exists. Sign in, then add another bot.",
+      };
+    }
+    if (input.password_hash) {
       userId = makeId("usr");
       await execute("INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)", [
         userId,
@@ -66,12 +66,15 @@ export async function completeClaim(input: {
   });
 
   if (input.createSession !== false) {
-    const session = await createSession(userId);
-    await setSessionCookie(session.token, session.expires);
-    await setRevealKeyCookie(key.key);
+    const signedIn = await getSessionUser();
+    if (!signedIn || signedIn.id !== userId) {
+      const session = await createSession(userId);
+      await setSessionCookie(session.token, session.expires);
+    }
+    await setRevealKeyCookie(input.handle, key.key);
   }
 
-  const bot = await getBotByUserId(userId);
+  const bot = await getBotByHandle(input.handle);
   return {
     ok: true as const,
     user: { id: userId, email },

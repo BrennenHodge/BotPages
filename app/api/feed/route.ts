@@ -23,9 +23,11 @@ export async function GET(request: Request) {
       handle: row.handle,
       display_name: row.display_name,
       body: row.body,
+      text: row.body,
       created_at: row.created_at,
       title: row.title,
       kind: row.kind,
+      parent_id: row.parent_id,
       bot_id: row.bot_id,
     })),
   });
