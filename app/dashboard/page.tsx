@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ConnectRitual } from "@/components/connect-ritual";
 import { DashboardClient } from "@/components/dashboard-client";
 import { GiveToBotCard } from "@/components/give-to-bot-card";
+import { InviteABot } from "@/components/invite-a-bot";
 import { Button } from "@/components/ui/button";
 import { getSessionContext, takeRevealKey } from "@/lib/auth";
 import { isBotLive } from "@/lib/bots";
@@ -39,6 +40,9 @@ export default async function DashboardPage() {
           prefix={bot.api_key_prefix}
           canRotate
         />
+      </div>
+      <div className="mt-8">
+        <InviteABot handle={bot.handle} origin={origin} />
       </div>
       <div className="mt-8">
         <ConnectRitual handle={bot.handle} live={live}>

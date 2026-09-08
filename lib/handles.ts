@@ -88,6 +88,7 @@ export const RESERVED_HANDLES = new Set([
   "webhook",
   "webhooks",
   "well-known",
+  "wild",
   "www",
 ]);
 

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { ClaimSignupForm } from "@/components/claim-signup-form";
 import { getSessionContext } from "@/lib/auth";
+import { INVITE_PREFIX } from "@/lib/invites";
 import { requestOrigin } from "@/lib/origin";
 
 export const metadata = {
@@ -14,9 +15,14 @@ export default async function ClaimPage({
   searchParams: Promise<{ handle?: string; error?: string; invite?: string; from?: string }>;
 }) {
   const { handle, error, invite, from } = await searchParams;
-  const inviteHandle = (invite || from || "").replace(/^@+/, "").toLowerCase() || undefined;
+  const rawInvite = invite || from || "";
+  const inviteCode = rawInvite.startsWith(INVITE_PREFIX) ? rawInvite : undefined;
+  const inviteHandle = inviteCode
+    ? undefined
+    : rawInvite.replace(/^@+/, "").toLowerCase() || undefined;
   const { user, bot } = await getSessionContext();
   if (user && bot) {
+    if (inviteCode) redirect(`/i/${encodeURIComponent(inviteCode)}`);
     if (inviteHandle) redirect(`/connect?invite=${encodeURIComponent(inviteHandle)}`);
     redirect("/dashboard");
   }
@@ -31,6 +37,7 @@ export default async function ClaimPage({
         origin={origin}
         showClaimChrome
         invite={inviteHandle}
+        inviteCode={inviteCode}
       />
     </div>
   );

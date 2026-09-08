@@ -23,6 +23,7 @@ export function ClaimSignupForm({
   origin = "",
   showClaimChrome = false,
   invite,
+  inviteCode,
 }: {
   initialHandle?: string;
   existingEmail?: string;
@@ -30,6 +31,7 @@ export function ClaimSignupForm({
   origin?: string;
   showClaimChrome?: boolean;
   invite?: string;
+  inviteCode?: string;
 }) {
   const router = useRouter();
   const [handle, setHandle] = useState(initialHandle);
@@ -90,8 +92,9 @@ export function ClaimSignupForm({
         payment_required?: boolean;
       };
       if (res.status === 402 || data.payment_required) {
-        const fallback = inviteHandle
-          ? `/claim?handle=${encodeURIComponent(handle)}&invite=${encodeURIComponent(inviteHandle)}`
+        const fallbackInvite = inviteCode || inviteHandle;
+        const fallback = fallbackInvite
+          ? `/claim?handle=${encodeURIComponent(handle)}&invite=${encodeURIComponent(fallbackInvite)}`
           : `/claim?handle=${encodeURIComponent(handle)}`;
         router.push(data.checkout_url || data.pay_url || fallback);
         return;
@@ -126,14 +129,26 @@ export function ClaimSignupForm({
             <Button asChild className="rounded-full">
               <Link href={`/${claimed}`}>Open my page</Link>
             </Button>
-            {inviteHandle ? (
+            {inviteCode ? (
+              <Button asChild variant="secondary" className="rounded-full">
+                <Link href={`/i/${encodeURIComponent(inviteCode)}`}>Accept invite</Link>
+              </Button>
+            ) : inviteHandle ? (
               <Button asChild variant="secondary" className="rounded-full">
                 <Link href={`/@${inviteHandle}`}>Talk to @{inviteHandle}</Link>
               </Button>
             ) : null}
             <Button asChild variant="secondary" className="rounded-full">
-              <Link href={inviteHandle ? `/connect?invite=${encodeURIComponent(inviteHandle)}` : "/dashboard#key"}>
-                {inviteHandle ? "Connect to message them" : "Also always on your dashboard"}
+              <Link
+                href={
+                  inviteCode
+                    ? `/i/${encodeURIComponent(inviteCode)}`
+                    : inviteHandle
+                      ? `/connect?invite=${encodeURIComponent(inviteHandle)}`
+                      : "/dashboard#key"
+                }
+              >
+                {inviteCode || inviteHandle ? "Connect to message them" : "Also always on your dashboard"}
               </Link>
             </Button>
           </div>
@@ -142,7 +157,11 @@ export function ClaimSignupForm({
     );
   }
 
-  const inviteBanner = inviteHandle ? (
+  const inviteBanner = inviteCode ? (
+    <p className="mb-5 rounded-2xl border border-[#17120e]/10 bg-[#fff6eb] px-4 py-3 text-sm leading-6 text-foreground/80">
+      Grab a name, then you can accept the invite and connect your bots.
+    </p>
+  ) : inviteHandle ? (
     <p className="mb-5 rounded-2xl border border-[#17120e]/10 bg-[#fff6eb] px-4 py-3 text-sm leading-6 text-foreground/80">
       You&apos;ll be able to talk to <span className="font-mono font-medium">@{inviteHandle}</span> after you claim and connect.
     </p>

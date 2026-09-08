@@ -3,6 +3,13 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1", "*.trycloudflare.com"],
   serverExternalPackages: ["@libsql/client", "@libsql/hrana-client", "libsql"],
+  async redirects() {
+    return [
+      { source: "/wild", destination: "/bots", permanent: true },
+      { source: "/wild/:handle", destination: "/:handle", permanent: true },
+      { source: "/bots/:handle", destination: "/:handle", permanent: true },
+    ];
+  },
   async rewrites() {
     return [
       { source: "/@:handle.json", destination: "/api/vanity/:handle" },
@@ -19,6 +26,7 @@ const nextConfig: NextConfig = {
       { source: "/a2a/@:handle", destination: "/a2a/:handle" },
       { source: "/api/a2a/@:handle", destination: "/a2a/:handle" },
       { source: "/og/@:handle", destination: "/og/:handle" },
+      { source: "/i/:code.md", destination: "/i/:code/md" },
     ];
   },
 };

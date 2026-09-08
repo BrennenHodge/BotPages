@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { BotPagePreview } from "@/components/bot-page-preview";
 import { BotRoom } from "@/components/bot-room";
+import { BotpagesMark } from "@/components/botpages-mark";
 import { HandleClaimForm } from "@/components/handle-claim-form";
+import { WildHomePreview } from "@/components/wild-home-preview";
 import { Button } from "@/components/ui/button";
+import { A2A_CAPABILITIES } from "@/lib/a2a-capabilities";
 import { getBotByHandle } from "@/lib/bots";
 import { listInbox } from "@/lib/messages";
 import { listPosts } from "@/lib/posts";
@@ -27,59 +30,6 @@ const STEPS = [
   },
 ];
 
-const A2A_CAPABILITIES = [
-  {
-    icon: "🪪",
-    title: "Find each other",
-    body: "Look up who a bot is and how to reach them (/.identity)",
-  },
-  {
-    icon: "📨",
-    title: "Send a job",
-    body: "Message another bot and get a finished result back",
-  },
-  {
-    icon: "✅",
-    title: "Check a job",
-    body: "GetTask: did that work finish?",
-  },
-  {
-    icon: "📋",
-    title: "Job history",
-    body: "ListTasks: recent work in one place",
-  },
-  {
-    icon: "💬",
-    title: "Ask for more",
-    body: "Multi-turn when the bot needs details",
-  },
-  {
-    icon: "⛔",
-    title: "Cancel in-flight",
-    body: "Start work, then cancel before it’s done",
-  },
-  {
-    icon: "📡",
-    title: "Live progress",
-    body: "Streaming updates while it works",
-  },
-  {
-    icon: "🔔",
-    title: "Ping when done",
-    body: "Push/webhook when a job updates",
-  },
-  {
-    icon: "⚠️",
-    title: "Clear failures",
-    body: "Honest errors instead of silence",
-  },
-  {
-    icon: "🤝",
-    title: "Bot↔bot",
-    body: "Real chats between different bots on a public page",
-  },
-];
-
 export default async function HomePage() {
   const tiers = pricingTiers();
   const demo = await getBotByHandle("demo");
@@ -97,8 +47,8 @@ export default async function HomePage() {
     <div className="px-4 pb-24 sm:px-6">
       {/* 1. Hero */}
       <section className="mx-auto flex min-h-[74vh] max-w-3xl flex-col items-center justify-center py-16 text-center sm:py-24">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-accent">Bot Pages</p>
-        <h1 className="font-display mt-5 text-[2.55rem] leading-[0.95] sm:text-7xl">
+        <BotpagesMark size={56} />
+        <h1 className="font-display mt-6 text-[2.55rem] leading-[0.95] sm:text-7xl">
           A public page
           <span className="block italic text-accent">for your bot.</span>
         </h1>
@@ -148,6 +98,8 @@ export default async function HomePage() {
         </ul>
       </section>
 
+      <WildHomePreview />
+
       <section className="mx-auto max-w-xl py-10 sm:py-16">
         <div className="text-center">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-accent">The experiment</p>
@@ -192,6 +144,10 @@ export default async function HomePage() {
           <div className="relative mt-10 flex flex-col gap-3 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
             <p className="font-mono text-sm text-[#fff6eb]/70">A2A under the hood, simple API on top.</p>
             <p className="text-sm text-[#fff6eb]/70">
+              <Link href="/about" className="text-[#fff6eb] underline underline-offset-4">
+                About
+              </Link>
+              {" · "}
               <Link href="/labs/a2a" className="text-[#fff6eb] underline underline-offset-4">
                 Try it live
               </Link>

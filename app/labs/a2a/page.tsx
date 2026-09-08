@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useState } from "react";
+import { A2A_CAPABILITIES } from "@/lib/a2a-capabilities";
 
 type StepResult = {
   name: string;
@@ -22,88 +23,7 @@ type SuiteResponse = {
   results: StepResult[];
 };
 
-const STEPS = [
-  {
-    id: "discover",
-    label: "1 · Find each other",
-    human: "Here's my page. Can another bot look up who you are and how to talk to you?",
-    example: "Like looking someone up before you text them — name, what they're good at, and the address to message.",
-    blurb: "@demo + @atlas identity · streaming on",
-    match: "Discover",
-  },
-  {
-    id: "send",
-    label: "2 · SendMessage",
-    human: "Actually send a job and get a finished result back (not just \"message delivered\").",
-    example: "You ask @atlas \"brief me on agent phone numbers.\" It returns a completed job plus a little deliverable (a brief).",
-    blurb: "@atlas research brief → Task + artifact",
-    match: "SendMessage",
-  },
-  {
-    id: "get",
-    label: "3 · GetTask",
-    human: "Check on a job you already started — did it finish?",
-    example: "Like tracking a package with a tracking number. Same job ID, current status.",
-    blurb: "Fetch the task we just created",
-    match: "GetTask",
-  },
-  {
-    id: "list",
-    label: "4 · ListTasks",
-    human: "See recent jobs in one place — a history list.",
-    example: "\"Show me the last few things this bot worked on,\" the way you'd scroll recent orders.",
-    blurb: "List with pageSize / contextId",
-    match: "ListTasks",
-  },
-  {
-    id: "multiturn",
-    label: "5 · INPUT_REQUIRED",
-    human: "The other bot can say \"I need more info,\" you answer, then it finishes.",
-    example: "\"Book a meeting\" → \"When and where?\" → you reply Tuesday 3pm → booking done.",
-    blurb: "@demo a2a:book → follow-up details",
-    match: "INPUT_REQUIRED",
-  },
-  {
-    id: "cancel",
-    label: "6 · Working + Cancel",
-    human: "Start something that's still in progress, then cancel it before it finishes.",
-    example: "Like hitting cancel on an Uber that hasn't arrived yet.",
-    blurb: "@demo a2a:work → CancelTask",
-    match: "CancelTask",
-  },
-  {
-    id: "stream",
-    label: "7 · Streaming",
-    human: "Watch progress drip in live instead of waiting for one big \"done.\"",
-    example: "Status updates: working… writing… done — like live typing, not a loading spinner that lies.",
-    blurb: "message/stream event frames",
-    match: "Streaming",
-  },
-  {
-    id: "push",
-    label: "8 · Push configs",
-    human: "\"Text me when you're done\" — register a callback so the bot can ping you later.",
-    example: "Leave your doorbell number; when the job finishes, Bot Pages knocks that URL.",
-    blurb: "Create / list / delete + webhook catcher",
-    match: "Push config",
-  },
-  {
-    id: "errors",
-    label: "9 · Error codes",
-    human: "When something's wrong, fail clearly instead of silently.",
-    example: "We deliberately send a bad version / unknown method / unsupported file type and check we get a clear \"nope.\"",
-    blurb: "version / method / content-type",
-    match: "Version",
-  },
-  {
-    id: "matrix",
-    label: "10 · Bot↔bot matrix",
-    human: "Proof it's not one lonely bot talking to itself — real chats between different demo bots.",
-    example: "Atlas messages Demo, Cobot messages Scribe, Pixie messages Ferry — three separate conversations.",
-    blurb: "atlas→demo · cobot→scribe · pixie→ferry",
-    match: "matrix",
-  },
-] as const;
+const STEPS = A2A_CAPABILITIES;
 
 export default function A2aLabPage() {
   const [busy, setBusy] = useState<string | null>(null);

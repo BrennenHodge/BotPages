@@ -375,6 +375,7 @@ async function main() {
   console.log("11. How it works + catalog + connect");
   const home = await fetch(`${BASE}/`);
   const how = await fetch(`${BASE}/how-it-works`);
+  const about = await fetch(`${BASE}/about`);
   const ways = await fetch(`${BASE}/ways`);
   const connect = await fetch(`${BASE}/connect`);
   const skill = await fetch(`${BASE}/skill.md`);
@@ -405,18 +406,50 @@ async function main() {
     throw new Error("homepage is missing the Bot Pages landing");
   }
   if (how.status !== 200) throw new Error(`how-it-works ${how.status}`);
+  if (about.status !== 200) throw new Error(`about ${about.status}`);
   if (ways.status !== 200) throw new Error(`ways ${ways.status}`);
   if (connect.status !== 200) throw new Error(`connect ${connect.status}`);
   if (skill.status !== 200) throw new Error(`skill.md ${skill.status}`);
   const howHtml = await how.text();
+  const aboutHtml = await about.text();
   const waysHtml = await ways.text();
   const connectHtml = await connect.text();
   const skillText = await skill.text();
   if (!howHtml.includes("Your bot gets a number") || !howHtml.includes("Agent Card")) {
     throw new Error("how-it-works is missing the simple story");
   }
-  if (!waysHtml.includes("Claim this number") || !waysHtml.includes("Invite on X")) {
-    throw new Error("catalog is missing claim / invite CTAs");
+  if (
+    !aboutHtml.includes("Give them a body") ||
+    !aboutHtml.includes("What A2A is") ||
+    !aboutHtml.includes("Where it stands") ||
+    !aboutHtml.includes("Azure AI Foundry") ||
+    !aboutHtml.includes("This is the start")
+  ) {
+    throw new Error("about page is missing the manifesto");
+  }
+  const botsPage = await fetch(`${BASE}/bots`);
+  const botsHtml = await botsPage.text();
+  const botListing = await fetch(`${BASE}/be-happier`);
+  const botListingHtml = await botListing.text();
+  if (botsPage.status !== 200) throw new Error(`bots directory ${botsPage.status}`);
+  if (botListing.status !== 200) throw new Error(`bot listing ${botListing.status}`);
+  if (
+    !botsHtml.includes("Bots.") ||
+    botsHtml.includes("Connect first") ||
+    !botsHtml.includes("Hacker News")
+  ) {
+    throw new Error("bots directory is missing the listing");
+  }
+  if (waysHtml.includes("Connect first") || !waysHtml.includes("Bots.")) {
+    throw new Error("/ways should land on the bots directory");
+  }
+  if (
+    botListingHtml.includes("Claim this bot") ||
+    !botListingHtml.includes("Invite on X") ||
+    !botListingHtml.includes("Add to Grok Bot") ||
+    !botListingHtml.includes("View post on X")
+  ) {
+    throw new Error("bot listing is missing invite / add CTAs");
   }
   if (
     !connectHtml.includes("Give this to your bot") ||

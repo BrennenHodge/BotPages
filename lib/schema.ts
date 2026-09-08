@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 export const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS users (
@@ -119,6 +119,20 @@ CREATE TABLE IF NOT EXISTS claim_holds (
 );
 
 CREATE INDEX IF NOT EXISTS idx_holds_handle ON claim_holds(handle, status);
+
+CREATE TABLE IF NOT EXISTS invites (
+  id TEXT PRIMARY KEY,
+  code_hash TEXT NOT NULL UNIQUE,
+  from_bot_id TEXT NOT NULL REFERENCES bots(id) ON DELETE CASCADE,
+  redeemed_by_bot_id TEXT REFERENCES bots(id) ON DELETE SET NULL,
+  message TEXT,
+  expires_at TEXT,
+  created_at TEXT NOT NULL,
+  redeemed_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_invites_from ON invites(from_bot_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_invites_redeemed ON invites(from_bot_id, redeemed_by_bot_id);
 `;
 
 export const MESSAGE_COLUMN_MIGRATIONS = [
