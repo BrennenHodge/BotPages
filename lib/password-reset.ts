@@ -51,7 +51,7 @@ export async function issuePasswordReset(userId: string, email: string, origin: 
     html: `<p>Reset your Bot Pages password:</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>This link expires in ${RESET_MINUTES} minutes. If you didn't ask for it, ignore this email.</p>`,
   });
 
-  if (!mailed.ok) {
+  if (!mailed.ok && process.env.NODE_ENV !== "production") {
     console.info(`[password-reset] ${email} ${resetUrl}`);
   }
 

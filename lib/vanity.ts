@@ -1,5 +1,7 @@
 import { getActivity } from "./activity";
 import { extractBearer, hashApiKey } from "./api-keys";
+import { originFromRequest } from "./bot-origin";
+import { rememberBotOrigin, rememberBotOriginFromRequest } from "./bot-origin-store";
 import { getBotByApiKeyHash, getBotByHandle, getBotById, handleExists, markBotLive, updateBot } from "./bots";
 import { EVENT_CATALOG, getEventType } from "./catalog";
 import { utcDay } from "./dates";
@@ -13,6 +15,7 @@ import { at, failJson, stripAt } from "./pretty";
 import { priceForHandle } from "./pricing";
 import { eventItemSchema, eventsBodySchema, vanityProfileSchema } from "./validations";
 import { deliverWebhook } from "./webhooks";
+import { assertSafeWebhookUrl } from "./webhook-url";
 
 export async function requireKey(request: Request) {
   const token = extractBearer(request.headers.get("authorization"));
@@ -23,6 +26,7 @@ export async function requireKey(request: Request) {
   if (!bot) {
     return { ok: false as const, response: failJson(401, "That API key is not real.", "unauthorized") };
   }
+  void rememberBotOriginFromRequest(bot, request);
   return { ok: true as const, bot };
 }
 
@@ -454,8 +458,9 @@ export async function updatePage(botId: string, body: unknown) {
     return { ok: false as const, error: parsed.error.issues[0]?.message ?? "Those page fields do not look right." };
   }
   if (Object.keys(parsed.data).length === 0) {
-    return { ok: false as const, error: "Send display_name, bio, skills, or is_public." };
+    return { ok: false as const, error: "Send display_name, bio, skills, is_public, or where you run." };
   }
+  await rememberBotOrigin({ id: botId }, originFromRequest(new Request("https://botpages.local"), parsed.data));
   const updated = await updateBot(botId, {
     display_name: parsed.data.display_name,
     bio: parsed.data.bio,
@@ -530,8 +535,9 @@ export async function setWebhook(botId: string, body: unknown) {
     return { ok: false as const, error: "url must be a string (or null to clear)." };
   }
   const url = typeof raw === "string" ? raw.trim() : "";
-  if (url && !/^https?:\/\//i.test(url)) {
-    return { ok: false as const, error: "Webhook URL must start with http(s)://." };
+  if (url) {
+    const safe = await assertSafeWebhookUrl(url);
+    if (!safe.ok) return { ok: false as const, error: safe.error };
   }
   if (url.length > 500) return { ok: false as const, error: "That URL is too long." };
   const updated = await updateBot(botId, {

@@ -17,6 +17,7 @@ import { originFromRequest } from "@/lib/origin";
 import { at, failJson, okJson, stripAt } from "@/lib/pretty";
 import type { Bot, Message } from "@/lib/types";
 import { requireKey, sayTo } from "@/lib/vanity";
+import { assertSafeWebhookUrl } from "@/lib/webhook-url";
 
 export const A2A_PROTOCOL_VERSION = "1.0";
 
@@ -784,6 +785,8 @@ async function deliverPushNotifications(task: A2aTask, bot: Bot, configs: A2aPus
 
   await Promise.all(
     targets.map(async (cfg) => {
+      const safe = await assertSafeWebhookUrl(cfg.url);
+      if (!safe.ok) return;
       const headers: Record<string, string> = {
         "content-type": "application/a2a+json",
         "user-agent": "botpages-a2a-push/1.0",
@@ -793,14 +796,15 @@ async function deliverPushNotifications(task: A2aTask, bot: Bot, configs: A2aPus
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 4000);
       try {
-        await fetch(cfg.url, {
+        await fetch(safe.url, {
           method: "POST",
           headers,
           body: JSON.stringify(payload),
           signal: controller.signal,
+          redirect: "error",
         });
-      } catch (error) {
-        console.warn(`[a2a-push] failed for task ${task.id} → ${cfg.url}`, error);
+      } catch {
+        console.warn(`[a2a-push] failed for task ${task.id}`);
       } finally {
         clearTimeout(timer);
       }
@@ -809,10 +813,12 @@ async function deliverPushNotifications(task: A2aTask, bot: Bot, configs: A2aPus
 
   // Bridge: also send A2A-shaped notice alongside existing message.received when webhook exists
   if (bot.webhook_url?.trim() && configs.length > 0) {
+    const safe = await assertSafeWebhookUrl(bot.webhook_url.trim());
+    if (!safe.ok) return;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 4000);
     try {
-      await fetch(bot.webhook_url.trim(), {
+      await fetch(safe.url, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -825,6 +831,7 @@ async function deliverPushNotifications(task: A2aTask, bot: Bot, configs: A2aPus
           bot: { handle: bot.handle, id: bot.id },
         }),
         signal: controller.signal,
+        redirect: "error",
       });
     } catch {
       /* ignore bridge failures */
@@ -1156,6 +1163,8 @@ export async function handleA2aPost(req: Request, rawHandle: string) {
           : params;
       const url = typeof cfgRaw.url === "string" ? cfgRaw.url.trim() : "";
       if (!url) return rpcError(rpc.id, -32602, "Invalid params: config.url is required.");
+      const safePush = await assertSafeWebhookUrl(url);
+      if (!safePush.ok) return rpcError(rpc.id, -32602, `Invalid params: ${safePush.error}`);
       const authentication = isRecord(cfgRaw.authentication)
         ? {
             schemes: Array.isArray(cfgRaw.authentication.schemes)
@@ -1169,7 +1178,7 @@ export async function handleA2aPost(req: Request, rawHandle: string) {
         : undefined;
       const entry = await addPushConfig(id, {
         id: typeof cfgRaw.id === "string" ? cfgRaw.id : undefined,
-        url,
+        url: safePush.url,
         authentication,
       });
       return rpcResult(rpc.id, { id: entry?.id, url: entry?.url, authentication: entry?.authentication });

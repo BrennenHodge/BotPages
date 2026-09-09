@@ -1,10 +1,15 @@
 import { originFromRequest } from "@/lib/origin";
 import { failJson, okJson } from "@/lib/pretty";
+import { hitRateLimit } from "@/lib/rate-limit";
+import { clientKey } from "@/lib/safe-next";
 import { resolveSetupCode, setupCodeFromRequest, setupResponse } from "@/lib/setup";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  if (hitRateLimit(clientKey(request, "setup"), 30, 60 * 60_000)) {
+    return failJson(429, "Too many setup tries. Wait a minute.", "rate_limited");
+  }
   let body: unknown = null;
   try {
     body = await request.json();

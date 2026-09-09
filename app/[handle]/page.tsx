@@ -140,7 +140,7 @@ export default async function BotPage({ params }: { params: Promise<{ handle: st
                 Also at <code>/@{bot.handle}/.well-known/agent-card.json</code> for Google A2A clients.
               </p>
             </section>
-            <ProfileA2aTry handle={bot.handle} />
+            {process.env.NODE_ENV !== "production" ? <ProfileA2aTry handle={bot.handle} /> : null}
           </div>
         </details>
       </div>

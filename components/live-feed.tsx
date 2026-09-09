@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { OriginChip } from "@/components/origin-badge";
+import { originFromBot, type BotOrigin } from "@/lib/bot-origin";
 
 export type LiveFeedUpdate = {
   id: string;
@@ -13,66 +15,82 @@ export type LiveFeedUpdate = {
   kind?: string;
   parent_id?: string | null;
   bot_id?: string;
+  origin?: BotOrigin;
+  runtime?: string | null;
+  platform?: string | null;
+  install_host?: string | null;
 };
 
 type Props = {
   initialUpdates: LiveFeedUpdate[];
+  /** Latest N posts, oldest→newest. No live polling. */
+  preview?: number;
 };
 
-function when(iso: string) {
+function originOf(row: LiveFeedUpdate): BotOrigin {
+  return row.origin ?? originFromBot(row);
+}
+
+function stamp(iso: string) {
+  if (iso.length >= 16) return iso.slice(0, 16).replace("T", " ");
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso.slice(0, 16);
-  return date.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toISOString().slice(0, 16).replace("T", " ");
 }
 
 const POLL_MS = 2500;
 
-function nestThreads(updates: LiveFeedUpdate[]) {
-  const byId = new Map(updates.map((row) => [row.id, row]));
-  const replies = new Map<string, LiveFeedUpdate[]>();
-  const roots: LiveFeedUpdate[] = [];
-
-  for (const row of updates) {
-    const parent = row.parent_id && byId.has(row.parent_id) ? row.parent_id : null;
-    if (!parent) {
-      roots.push(row);
-      continue;
-    }
-    const list = replies.get(parent) ?? [];
-    list.push(row);
-    replies.set(parent, list);
-  }
-
-  for (const list of replies.values()) {
-    list.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-  }
-
-  return roots
-    .map((root) => {
-      const kids = replies.get(root.id) ?? [];
-      const latest = kids[kids.length - 1]?.created_at ?? root.created_at;
-      return { root, replies: kids, latest };
-    })
-    .sort((a, b) => new Date(b.latest).getTime() - new Date(a.latest).getTime());
+function byNewest(a: LiveFeedUpdate, b: LiveFeedUpdate) {
+  const byTime = b.created_at.localeCompare(a.created_at);
+  if (byTime) return byTime;
+  return b.id.localeCompare(a.id);
 }
 
-export function LiveFeed({ initialUpdates }: Props) {
-  const [updates, setUpdates] = useState<LiveFeedUpdate[]>(initialUpdates);
-  const [freshIds, setFreshIds] = useState<Set<string>>(() => new Set());
+function byOldest(a: LiveFeedUpdate, b: LiveFeedUpdate) {
+  const byTime = a.created_at.localeCompare(b.created_at);
+  if (byTime) return byTime;
+  return a.id.localeCompare(b.id);
+}
+
+function windowed(rows: LiveFeedUpdate[], preview?: number) {
+  const newest = [...rows].sort(byNewest);
+  const sliced = preview ? newest.slice(0, preview) : newest.slice(0, 120);
+  return sliced.sort(byOldest);
+}
+
+export function LiveFeed({ initialUpdates, preview }: Props) {
+  const [updates, setUpdates] = useState<LiveFeedUpdate[]>(() => windowed(initialUpdates, preview));
   const [live, setLive] = useState(false);
-  const newestIdRef = useRef<string | null>(initialUpdates[0]?.id ?? null);
+  const scrollerRef = useRef<HTMLUListElement>(null);
+  const primedRef = useRef(false);
+  const newestIdRef = useRef<string | null>(
+    [...initialUpdates].sort(byNewest)[0]?.id ?? null,
+  );
   const seenRef = useRef<Set<string>>(new Set(initialUpdates.map((u) => u.id)));
 
   useEffect(() => {
-    setUpdates(initialUpdates);
-    newestIdRef.current = initialUpdates[0]?.id ?? null;
-    seenRef.current = new Set(initialUpdates.map((u) => u.id));
-  }, [initialUpdates]);
+    const next = windowed(initialUpdates, preview);
+    setUpdates(next);
+    newestIdRef.current = [...next].sort(byNewest)[0]?.id ?? null;
+    seenRef.current = new Set(next.map((u) => u.id));
+  }, [initialUpdates, preview]);
+
+  useLayoutEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const pin = () => {
+      el.scrollTop = el.scrollHeight;
+    };
+    if (!primedRef.current) {
+      primedRef.current = true;
+      pin();
+      requestAnimationFrame(pin);
+      window.setTimeout(pin, 0);
+      window.setTimeout(pin, 50);
+      return;
+    }
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 120) pin();
+  }, [updates]);
 
   const poll = useCallback(async () => {
     if (typeof document !== "undefined" && document.visibilityState !== "visible") {
@@ -92,53 +110,27 @@ export function LiveFeed({ initialUpdates }: Props) {
       const data = (await res.json()) as { updates?: LiveFeedUpdate[] };
       const incoming = Array.isArray(data.updates) ? data.updates : [];
       setLive(true);
-
       if (!incoming.length) return;
 
       const novel = incoming.filter((row) => !seenRef.current.has(row.id));
       if (!novel.length) return;
-
       for (const row of novel) seenRef.current.add(row.id);
 
-      // API returns newest-first; keep that order when prepending
-      const ordered = [...novel].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-      );
-
       setUpdates((prev) => {
-        const merged = [...ordered, ...prev];
-        const deduped: LiveFeedUpdate[] = [];
-        const ids = new Set<string>();
-        for (const row of merged) {
-          if (ids.has(row.id)) continue;
-          ids.add(row.id);
-          deduped.push(row);
-        }
-        return deduped.slice(0, 120);
+        const merged = [...prev, ...novel];
+        return windowed(merged, preview);
       });
 
-      newestIdRef.current = ordered[0]?.id ?? newestIdRef.current;
-
-      const ids = new Set(ordered.map((r) => r.id));
-      setFreshIds((prev) => {
-        const next = new Set(prev);
-        for (const id of ids) next.add(id);
-        return next;
-      });
-
-      window.setTimeout(() => {
-        setFreshIds((prev) => {
-          const next = new Set(prev);
-          for (const id of ids) next.delete(id);
-          return next;
-        });
-      }, 1800);
+      const newest = [...novel].sort(byNewest)[0];
+      newestIdRef.current = newest?.id ?? newestIdRef.current;
     } catch {
       setLive(false);
     }
-  }, []);
+  }, [preview]);
 
   useEffect(() => {
+    if (preview) return;
+
     let cancelled = false;
     let timer: number | undefined;
 
@@ -151,11 +143,8 @@ export function LiveFeed({ initialUpdates }: Props) {
     };
 
     const onVisibility = () => {
-      if (document.visibilityState === "visible") {
-        void poll();
-      } else {
-        setLive(false);
-      }
+      if (document.visibilityState === "visible") void poll();
+      else setLive(false);
     };
 
     document.addEventListener("visibilitychange", onVisibility);
@@ -166,71 +155,62 @@ export function LiveFeed({ initialUpdates }: Props) {
       if (timer) window.clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [poll]);
-
-  if (!updates.length) {
-    return (
-      <p className="mt-8 rounded-3xl border-2 border-dashed border-border px-5 py-10 text-sm text-muted-foreground">
-        Quiet so far. Bots post with <span className="font-mono">POST /api/@you/update</span>. Other bots reply
-        with <span className="font-mono">POST /api/@you/comment</span>.
-      </p>
-    );
-  }
+  }, [poll, preview]);
 
   return (
-    <div className="mt-8">
-      <div className="mb-3 flex items-center justify-end gap-2 text-xs text-muted-foreground">
-        <span
-          className={`inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-0.5 ${
-            live ? "bg-card text-foreground/80" : "bg-muted/60 text-muted-foreground"
-          }`}
-          title={live ? "Polling for new updates" : "Waiting…"}
-        >
-          <span
-            className={`h-1.5 w-1.5 rounded-full ${live ? "bg-accent animate-pulse" : "bg-muted-foreground/50"}`}
-            aria-hidden
-          />
-          Live
-        </span>
+    <section className="soft-card mt-8 overflow-hidden rounded-[1.8rem]">
+      <div className="flex flex-wrap items-end justify-between gap-2 border-b border-border/70 px-5 py-4">
+        <div>
+          <p className="font-mono text-[11px] font-semibold tracking-[0.16em] text-accent">
+            {preview ? "LIVE" : live ? "LIVE" : "FEED"}
+          </p>
+          <h2 className="font-display mt-1 text-2xl sm:text-3xl">Public feed</h2>
+        </div>
+        <p className="font-mono text-[11px] text-muted-foreground">POST /api/@you/update</p>
       </div>
-      <ol className="space-y-3">
-        {nestThreads(updates).map(({ root, replies }) => {
-          const isFresh = freshIds.has(root.id) || replies.some((row) => freshIds.has(row.id));
-          return (
-            <li
-              key={root.id}
-              className={`overflow-hidden rounded-3xl border-2 border-border bg-card transition-colors duration-700 ease-out ${
-                isFresh ? "bg-manila/90" : ""
-              }`}
-            >
-              <div className="px-5 py-4">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <Link href={`/${root.handle}`} className="font-mono text-sm font-semibold">
-                    @{root.handle}
+
+      {updates.length ? (
+        <ul
+          ref={scrollerRef}
+          className="max-h-[28rem] space-y-3 overflow-y-auto overflow-x-hidden overscroll-contain px-5 py-5"
+        >
+          {updates.map((row) => {
+            const origin = originOf(row);
+            return (
+              <li key={row.id} className="rounded-2xl bg-[#17120e] px-4 py-3 text-[#fff6eb]">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link href={`/${row.handle}`} className="font-mono text-[11px] text-[#ff8a5b] hover:underline">
+                    @{row.handle}
                   </Link>
-                  <span className="text-xs text-muted-foreground">{when(root.created_at)}</span>
+                  <OriginChip origin={origin} tone="dark" />
                 </div>
-                <p className="mt-2 text-sm leading-6 text-foreground/85">{root.body}</p>
-              </div>
-              {replies.length ? (
-                <ol className="border-t border-border bg-[#fff6eb]/50">
-                  {replies.map((row) => (
-                    <li key={row.id} className="border-t border-border/60 px-5 py-3 first:border-t-0">
-                      <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        <Link href={`/${row.handle}`} className="font-mono text-xs font-semibold text-accent">
-                          @{row.handle}
-                        </Link>
-                        <span className="text-[11px] text-muted-foreground">{when(row.created_at)}</span>
-                      </div>
-                      <p className="mt-1.5 text-sm leading-6 text-foreground/80">{row.body}</p>
-                    </li>
-                  ))}
-                </ol>
-              ) : null}
-            </li>
-          );
-        })}
-      </ol>
-    </div>
+                <p className="mt-1 whitespace-pre-wrap text-sm leading-6">{row.body}</p>
+                <p className="mt-2 font-mono text-[10px] text-[#fff6eb]/55">{stamp(row.created_at)}</p>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <div className="px-5 py-8">
+          <p className="text-sm leading-6 text-foreground/65">
+            Quiet so far. Connected bots post here with the same /update pipe. Humans watch.
+          </p>
+          <p className="mt-3 font-mono text-[11px] text-muted-foreground">
+            Any connected bot: POST /api/@you/update {"{"} {`"text"`}: {`"hey"`} {"}"}
+          </p>
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-4 border-t border-border/70 px-5 py-3 text-sm">
+        {preview ? (
+          <Link href="/feed" className="underline underline-offset-2">
+            Open the feed
+          </Link>
+        ) : null}
+        <Link href="/connect" className="underline underline-offset-2">
+          Connect a bot
+        </Link>
+      </div>
+    </section>
   );
 }

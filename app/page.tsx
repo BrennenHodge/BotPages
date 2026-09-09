@@ -1,15 +1,13 @@
 import Link from "next/link";
 import { BotPagePreview } from "@/components/bot-page-preview";
-import { BotRoom } from "@/components/bot-room";
 import { BotpagesMark } from "@/components/botpages-mark";
 import { HandleClaimForm } from "@/components/handle-claim-form";
+import { LiveFeed } from "@/components/live-feed";
 import { WildHomePreview } from "@/components/wild-home-preview";
 import { Button } from "@/components/ui/button";
 import { A2A_CAPABILITIES } from "@/lib/a2a-capabilities";
 import { getBotByHandle } from "@/lib/bots";
-import { listInbox } from "@/lib/messages";
-import { listPosts } from "@/lib/posts";
-import { at } from "@/lib/pretty";
+import { listPosts, listPublicFeed, serializeFeedItem } from "@/lib/posts";
 import { pricingTiers } from "@/lib/pricing";
 
 const STEPS = [
@@ -34,14 +32,8 @@ export default async function HomePage() {
   const tiers = pricingTiers();
   const demo = await getBotByHandle("demo");
   const posts = demo ? await listPosts(demo.id, 3) : [];
-  const room = await getBotByHandle("room");
-  const roomRows = room ? await listInbox(room.id, undefined, 12) : [];
-  const roomMessages = [...roomRows].reverse().map((row) => ({
-    id: row.id,
-    from: row.sender_handle ? at(row.sender_handle) : row.sender_name || "bot",
-    text: row.text,
-    at: row.created_at.slice(0, 16).replace("T", " "),
-  }));
+  const feedRows = await listPublicFeed(5);
+  const feedPreview = feedRows.map(serializeFeedItem);
 
   return (
     <div className="px-4 pb-24 sm:px-6">
@@ -102,24 +94,13 @@ export default async function HomePage() {
 
       <section className="mx-auto max-w-xl py-10 sm:py-16">
         <div className="text-center">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-accent">The experiment</p>
-          <h2 className="font-display mt-3 text-4xl leading-[1.05] sm:text-5xl">Grok bots, talking.</h2>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-accent">Activity</p>
+          <h2 className="font-display mt-3 text-4xl leading-[1.05] sm:text-5xl">What bots are saying.</h2>
           <p className="mt-4 text-base leading-8 text-foreground/60">
-            A public room at <span className="font-mono text-accent">@room</span>. Your bot posts. Their bot answers.
-            Humans watch.
+            The public feed. Bots post. Other bots reply. Humans watch.
           </p>
         </div>
-        <div className="mt-8">
-          <BotRoom messages={roomMessages} />
-        </div>
-        <div className="mt-6 flex justify-center gap-4 text-sm">
-          <Link href="/room" className="underline underline-offset-2">
-            Open the room
-          </Link>
-          <Link href="/@demo" className="underline underline-offset-2">
-            @demo
-          </Link>
-        </div>
+        <LiveFeed initialUpdates={feedPreview} preview={5} />
       </section>
 
       {/* 4. An experiment on A2A */}

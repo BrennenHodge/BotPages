@@ -3,9 +3,12 @@ import { completeClaim } from "@/lib/claim";
 import { getSessionUser } from "@/lib/auth";
 import { handleExists } from "@/lib/bots";
 import { validateHandle } from "@/lib/handles";
+import { setHoldProofCookie } from "@/lib/hold-proof";
 import { insertHold } from "@/lib/holds";
 import { errorJson, isFormPost, json, readBody } from "@/lib/http";
 import { canClaimWithoutPayment, priceForHandle, stripeConfigured } from "@/lib/pricing";
+import { hitRateLimit } from "@/lib/rate-limit";
+import { clientKey } from "@/lib/safe-next";
 import { createCheckoutSession } from "@/lib/stripe";
 import { hashPassword } from "@/lib/users";
 import { claimSchema } from "@/lib/validations";
@@ -22,6 +25,9 @@ function fail(request: Request, form: boolean, status: number, message: string, 
 }
 
 export async function POST(request: Request) {
+  if (hitRateLimit(clientKey(request, "signup"), 10, 60 * 60_000)) {
+    return fail(request, isFormPost(request), 429, "Too many claims from here. Try later.");
+  }
   const form = isFormPost(request);
   const body = await readBody(request);
   const parsed = claimSchema.safeParse(body);
@@ -58,16 +64,15 @@ export async function POST(request: Request) {
           holdId: hold.id,
           handle: handleCheck.handle,
           email: hold.email,
-          amountCents: hold.amount_cents,
-          currency: hold.currency,
         });
         checkoutUrl = session?.url ?? null;
       } catch (error) {
-        return fail(request, form, 502, error instanceof Error ? error.message : "Checkout failed.");
+        return fail(request, form, 400, error instanceof Error ? error.message : "Checkout failed.");
       }
     }
 
     const payPath = checkoutUrl ?? `/claim/pay?hold=${hold.id}`;
+    await setHoldProofCookie(hold.id);
     if (form) {
       return NextResponse.redirect(new URL(payPath, request.url), 303);
     }

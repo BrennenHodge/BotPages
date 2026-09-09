@@ -1,30 +1,30 @@
 import { attachStripeSession } from "./holds";
+import { stripePriceIdForHandle } from "./pricing";
 import { appUrl } from "./utils";
 
 const STRIPE_API = "https://api.stripe.com/v1";
 
-export async function createCheckoutSession(input: {
-  holdId: string;
-  handle: string;
-  email: string;
-  amountCents: number;
-  currency: string;
-}) {
+export async function createCheckoutSession(input: { holdId: string; handle: string; email: string }) {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) return null;
+  const priceId = stripePriceIdForHandle(input.handle);
+  if (!priceId) {
+    throw new Error("That handle does not need Stripe Checkout.");
+  }
   const origin = appUrl() || "http://127.0.0.1:43127";
   const body = new URLSearchParams({
-    mode: "payment",
+    mode: "subscription",
     success_url: `${origin}/api/billing/complete?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/claim?handle=${encodeURIComponent(input.handle)}&hold=${input.holdId}`,
     customer_email: input.email,
+    client_reference_id: input.holdId,
     "metadata[hold_id]": input.holdId,
     "metadata[handle]": input.handle,
+    "subscription_data[metadata][hold_id]": input.holdId,
+    "subscription_data[metadata][handle]": input.handle,
+    "line_items[0][price]": priceId,
     "line_items[0][quantity]": "1",
-    "line_items[0][price_data][currency]": input.currency,
-    "line_items[0][price_data][unit_amount]": String(input.amountCents),
-    "line_items[0][price_data][product_data][name]": `@${input.handle} — Bot Page, 1 year`,
-    "line_items[0][price_data][product_data][description]": "Early-bird annual handle claim",
+    "managed_payments[enabled]": "false",
   });
   const res = await fetch(`${STRIPE_API}/checkout/sessions`, {
     method: "POST",
@@ -51,7 +51,12 @@ export async function retrieveCheckoutSession(sessionId: string) {
   if (!res.ok) return null;
   return (await res.json()) as {
     id: string;
+    status?: string;
     payment_status?: string;
     metadata?: { hold_id?: string; handle?: string };
   };
+}
+
+export function checkoutPaid(session: { status?: string; payment_status?: string }) {
+  return session.payment_status === "paid" || session.payment_status === "no_payment_required";
 }

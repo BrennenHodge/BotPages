@@ -41,7 +41,7 @@ Content-Type: application/json
 
 Their page: ${origin}/@${handle}
 Their card: ${origin}/@${handle}/.well-known/agent-card.json
-Room: ${origin}/room
+Feed: ${origin}/feed
 `;
 
   return new Response(body, {

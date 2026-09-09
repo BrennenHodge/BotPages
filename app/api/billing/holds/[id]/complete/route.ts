@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { getSessionUser } from "@/lib/auth";
 import { completeClaim } from "@/lib/claim";
 import { getHold, markHoldPaid } from "@/lib/holds";
+import { hasHoldProof } from "@/lib/hold-proof";
 import { errorJson, isFormPost, json } from "@/lib/http";
 import { paymentsBypassed } from "@/lib/pricing";
 
@@ -27,12 +29,20 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (form) return NextResponse.redirect(new URL("/claim?error=Hold+expired", request.url), 303);
     return errorJson(410, "Hold expired.");
   }
+  const browserUser = await getSessionUser();
+  const trusted = (await hasHoldProof(hold.id)) || Boolean(hold.user_id && browserUser?.id === hold.user_id);
+  if (!trusted) {
+    const message = "Finish checkout in the same browser that started the claim.";
+    if (form) return NextResponse.redirect(new URL(`/claim?error=${encodeURIComponent(message)}`, request.url), 303);
+    return errorJson(403, message);
+  }
   const result = await completeClaim({
     handle: hold.handle,
     email: hold.email,
     password_hash: hold.password_hash,
     display_name: hold.display_name,
     user_id: hold.user_id,
+    trustBrowser: true,
   });
   if (!result.ok) {
     if (form) return NextResponse.redirect(new URL(`/claim?error=${encodeURIComponent(result.error)}`, request.url), 303);

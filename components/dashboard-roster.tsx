@@ -4,8 +4,11 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { BotAvatar } from "@/components/bot-avatar";
 import { Button } from "@/components/ui/button";
+import { ChatShare } from "@/components/chat-share";
 import { Input } from "@/components/ui/input";
-import type { FleetBotCard, FleetPulseItem } from "@/lib/fleet";
+import { DeskChat } from "@/components/desk-chat";
+import { originLine } from "@/lib/bot-origin";
+import type { FleetBotCard, FleetConversation, FleetPulseItem } from "@/lib/fleet";
 import { formatWhen } from "@/lib/utils";
 
 function clip(text: string, max = 88) {
@@ -43,6 +46,7 @@ function BotRow({ card }: { card: FleetBotCard }) {
             ) : null}
           </div>
           <p className="mt-0.5 truncate text-sm text-foreground/55">{card.display_name}</p>
+          <p className="mt-1 text-[11px] leading-4 text-foreground/45">{originLine(card.origin)}</p>
           {card.live ? (
             <div className="mt-2 space-y-1 text-sm leading-6 text-foreground/70">
               {card.lastMail ? (
@@ -78,6 +82,7 @@ function BotRow({ card }: { card: FleetBotCard }) {
         <Button asChild size="sm" variant={card.live ? "secondary" : "default"} className="rounded-full">
           <Link href={`/dashboard/${card.handle}`}>{card.live ? "Desk" : "Connect"}</Link>
         </Button>
+        <ChatShare handle={card.handle} name={card.display_name} />
       </div>
     </article>
   );
@@ -119,9 +124,11 @@ function Section({
 export function DashboardRoster({
   cards,
   pulse,
+  conversations,
 }: {
   cards: FleetBotCard[];
   pulse: FleetPulseItem[];
+  conversations: FleetConversation[];
 }) {
   const [q, setQ] = useState("");
   const filtered = useMemo(() => {
@@ -152,50 +159,37 @@ export function DashboardRoster({
         </div>
       ) : null}
 
+      {conversations.length ? <DeskChat conversations={conversations} /> : null}
+
       {pulse.length ? (
         <section>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">Activity</p>
-          <h2 className="mt-1 text-2xl font-semibold tracking-tight">What’s happening</h2>
-          <p className="mt-1 max-w-xl text-sm leading-6 text-foreground/60">
-            Mail into your bots, and what they reported they did. Newest first, across the whole desk.
-          </p>
-          <ol className="mt-4 divide-y divide-foreground/8 overflow-hidden rounded-[1.5rem] border border-foreground/8 bg-card">
-            {pulse.map((item, index) => (
-              <li key={`${item.kind}-${item.botHandle}-${item.at}-${index}`} className="px-4 py-3 sm:px-5">
-                {item.kind === "mail" ? (
-                  <p className="text-sm leading-6">
-                    <Link href={`/${item.botHandle}`} className="font-mono font-medium underline-offset-2 hover:underline">
-                      @{item.botHandle}
-                    </Link>
-                    <span className="text-foreground/45"> got mail from </span>
-                    {item.from}
-                    <span className="text-foreground/70"> — {clip(item.text, 100)}</span>
-                    <span className="text-foreground/40"> · {formatWhen(item.at)}</span>
-                  </p>
-                ) : (
-                  <p className="text-sm leading-6">
-                    <Link href={`/${item.botHandle}`} className="font-mono font-medium underline-offset-2 hover:underline">
-                      @{item.botHandle}
-                    </Link>
-                    <span className="text-foreground/45"> did </span>
-                    {item.label}
-                    <span className="text-foreground/40"> · {formatWhen(item.at)}</span>
-                  </p>
-                )}
-              </li>
-            ))}
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">Receipts</p>
+          <h2 className="mt-1 text-xl font-semibold tracking-tight">Work they logged</h2>
+          <ol className="mt-3 space-y-1 text-sm text-foreground/60">
+            {pulse.map((item, index) =>
+              item.kind === "did" ? (
+                <li key={`${item.botHandle}-${item.at}-${index}`}>
+                  <Link href={`/${item.botHandle}`} className="font-mono font-medium text-foreground underline-offset-2 hover:underline">
+                    @{item.botHandle}
+                  </Link>
+                  <span> · {item.label}</span>
+                  <span className="text-foreground/40"> · {formatWhen(item.at)}</span>
+                </li>
+              ) : null,
+            )}
           </ol>
         </section>
-      ) : (
+      ) : null}
+
+      {!conversations.length && !pulse.length ? (
         <section className="rounded-[1.5rem] border border-dashed border-border px-5 py-6">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">Activity</p>
           <h2 className="mt-1 text-2xl font-semibold tracking-tight">Quiet so far</h2>
           <p className="mt-2 max-w-xl text-sm leading-6 text-foreground/65">
-            When someone writes one of your bots, it shows up here. When a bot reports work — mail sent, tasks
-            done — that lands here too.
+            When bots write each other, it shows up here as a thread — sender on the right, the other bot on the left.
           </p>
         </section>
-      )}
+      ) : null}
 
       {filtered.length === 0 ? (
         <p className="text-sm text-foreground/55">No handle matches “{q}”.</p>

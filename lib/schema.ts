@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 export const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS users (
@@ -30,6 +30,10 @@ CREATE TABLE IF NOT EXISTS bots (
   api_key_prefix TEXT NOT NULL,
   is_public INTEGER NOT NULL DEFAULT 1,
   went_live_at TEXT,
+  runtime TEXT,
+  platform TEXT,
+  install_host TEXT,
+  origin_seen_at TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -100,7 +104,6 @@ CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_bot_id, create
 CREATE UNIQUE INDEX IF NOT EXISTS idx_events_dedupe ON events(bot_id, dedupe_key);
 CREATE INDEX IF NOT EXISTS idx_events_bot_time ON events(bot_id, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_posts_bot ON posts(bot_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_posts_parent ON posts(parent_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_a2a_tasks_bot ON a2a_tasks(bot_id, updated_at);
 CREATE INDEX IF NOT EXISTS idx_a2a_tasks_context ON a2a_tasks(context_id, updated_at);
 CREATE INDEX IF NOT EXISTS idx_a2a_tasks_state ON a2a_tasks(bot_id, state);
@@ -158,6 +161,10 @@ export const BOT_COLUMN_MIGRATIONS = [
   { name: "website_url", sql: "ALTER TABLE bots ADD COLUMN website_url TEXT" },
   { name: "x_handle", sql: "ALTER TABLE bots ADD COLUMN x_handle TEXT" },
   { name: "went_live_at", sql: "ALTER TABLE bots ADD COLUMN went_live_at TEXT" },
+  { name: "runtime", sql: "ALTER TABLE bots ADD COLUMN runtime TEXT" },
+  { name: "platform", sql: "ALTER TABLE bots ADD COLUMN platform TEXT" },
+  { name: "install_host", sql: "ALTER TABLE bots ADD COLUMN install_host TEXT" },
+  { name: "origin_seen_at", sql: "ALTER TABLE bots ADD COLUMN origin_seen_at TEXT" },
 ] as const;
 
 export const POST_COLUMN_MIGRATIONS = [

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { originFromRequest } from "@/lib/origin";
 import { stripAt } from "@/lib/pretty";
+import { labsAllowed, labsNotFound } from "@/lib/labs";
 
 export const runtime = "nodejs";
 
@@ -100,6 +101,7 @@ async function timed(
 }
 
 export async function POST(request: Request) {
+  if (!labsAllowed()) return labsNotFound();
   let body: { handle?: string; step?: string; suite?: string } = {};
   try {
     body = await request.json();

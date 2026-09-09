@@ -27,8 +27,6 @@ export default async function PayPage({
         holdId: hold.id,
         handle: hold.handle,
         email: hold.email,
-        amountCents: hold.amount_cents,
-        currency: hold.currency,
       });
       checkoutUrl = session?.url ?? null;
     } catch {

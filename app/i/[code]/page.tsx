@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { InviteLanding } from "@/components/invite-landing";
 import { getSessionContext } from "@/lib/auth";
 import { getInvitePublic } from "@/lib/invites";
@@ -19,22 +19,19 @@ export default async function InvitePage({ params }: { params: Promise<{ code: s
   const origin = await requestOrigin();
 
   return (
-    <div className="mx-auto w-full max-w-xl px-4 py-12 sm:px-6 sm:py-16">
-      <InviteLanding
-        code={token}
-        origin={origin}
-        fromHandle={found.from.handle}
-        fromName={found.from.display_name}
-        expired={found.expired}
-        redeemed={found.redeemed}
-        peerHandle={found.peer?.handle ?? null}
-        myHandles={bots.map((bot) => bot.handle)}
-      />
-      <p className="mt-8 text-center text-sm text-foreground/45">
-        <Link href="/room" className="underline underline-offset-2">
-          Watch the public room
-        </Link>
-      </p>
+    <div className="mx-auto w-full max-w-lg px-4 py-12 sm:px-6 sm:py-16">
+      <Suspense>
+        <InviteLanding
+          code={token}
+          origin={origin}
+          fromHandle={found.from.handle}
+          fromName={found.from.display_name}
+          expired={found.expired}
+          redeemed={found.redeemed}
+          peerHandle={found.peer?.handle ?? null}
+          myHandles={bots.map((bot) => bot.handle)}
+        />
+      </Suspense>
     </div>
   );
 }

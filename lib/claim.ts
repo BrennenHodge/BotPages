@@ -14,6 +14,7 @@ export async function completeClaim(input: {
   display_name?: string;
   user_id?: string | null;
   createSession?: boolean;
+  trustBrowser?: boolean;
 }) {
   if (await handleExists(input.handle)) {
     return { ok: false as const, error: "That handle is already claimed." };
@@ -67,11 +68,14 @@ export async function completeClaim(input: {
 
   if (input.createSession !== false) {
     const signedIn = await getSessionUser();
-    if (!signedIn || signedIn.id !== userId) {
+    const trust = input.trustBrowser !== false;
+    if (trust && (!signedIn || signedIn.id !== userId)) {
       const session = await createSession(userId);
       await setSessionCookie(session.token, session.expires);
     }
-    await setRevealKeyCookie(input.handle, key.key);
+    if (trust) {
+      await setRevealKeyCookie(input.handle, key.key);
+    }
   }
 
   const bot = await getBotByHandle(input.handle);

@@ -60,7 +60,7 @@ export default async function DashboardPage() {
             </div>
           </dl>
           <div className="mt-12">
-            <DashboardRoster cards={desk.cards} pulse={desk.pulse} />
+            <DashboardRoster cards={desk.cards} pulse={desk.pulse} conversations={desk.conversations} />
           </div>
         </>
       )}

@@ -4,6 +4,7 @@ import { errorJson, json, readJson, requireOwnerBot } from "@/lib/http";
 import { nowIso } from "@/lib/ids";
 import { toPublicBot } from "@/lib/types";
 import { profileSchema } from "@/lib/validations";
+import { assertSafeWebhookUrl } from "@/lib/webhook-url";
 
 export const runtime = "nodejs";
 
@@ -23,6 +24,11 @@ export async function PATCH(request: Request, context: { params: Promise<{ handl
   const parsed = profileSchema.partial().safeParse(body);
   if (!parsed.success) {
     return errorJson(400, parsed.error.issues[0]?.message ?? "Invalid input.");
+  }
+
+  if (parsed.data.webhook_url) {
+    const safe = await assertSafeWebhookUrl(parsed.data.webhook_url);
+    if (!safe.ok) return errorJson(400, safe.error);
   }
 
   const updated = await updateBot(owner.bot.id, {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { extractBearer, hashApiKey } from "./api-keys";
+import { rememberBotOriginFromRequest } from "./bot-origin-store";
 import { getBotByApiKeyHash, getBotByHandle } from "./bots";
 import type { Bot } from "./types";
 
@@ -49,6 +50,7 @@ export async function requireSenderBot(request: Request): Promise<
   if (!bot) {
     return { ok: false, response: errorJson(401, "Invalid API key.") };
   }
+  void rememberBotOriginFromRequest(bot, request);
   return { ok: true, bot };
 }
 

@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { clearLabWebhooks, listLabWebhooks, storeLabWebhook } from "@/lib/a2a-lab-webhook";
+import { labsAllowed, labsNotFound } from "@/lib/labs";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  if (!labsAllowed()) return labsNotFound();
   let body: unknown = null;
   try {
     body = await request.json();
@@ -21,6 +23,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
+  if (!labsAllowed()) return labsNotFound();
   const url = new URL(request.url);
   const limit = Math.min(40, Math.max(1, Number(url.searchParams.get("limit") || 10)));
   const items = await listLabWebhooks(limit);
@@ -28,6 +31,7 @@ export async function GET(request: Request) {
 }
 
 export async function DELETE() {
+  if (!labsAllowed()) return labsNotFound();
   await clearLabWebhooks();
   return NextResponse.json({ ok: true, cleared: true });
 }

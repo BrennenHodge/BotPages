@@ -17,6 +17,10 @@ type BotRow = {
   api_key_prefix: string;
   is_public: number;
   went_live_at?: string | null;
+  runtime?: string | null;
+  platform?: string | null;
+  install_host?: string | null;
+  origin_seen_at?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -40,6 +44,10 @@ function mapBot(row: BotRow): Bot {
     webhook_url: row.webhook_url || null,
     is_public: Boolean(row.is_public),
     went_live_at: row.went_live_at ?? null,
+    runtime: row.runtime ?? null,
+    platform: row.platform ?? null,
+    install_host: row.install_host ?? null,
+    origin_seen_at: row.origin_seen_at ?? null,
   };
 }
 
@@ -132,8 +140,8 @@ export async function insertBot(bot: {
   await execute(
     `INSERT INTO bots (
       id, user_id, handle, display_name, bio, owner_blurb, website_url, x_handle,
-      skills, webhook_url, api_key_hash, api_key_prefix, is_public, went_live_at, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      skills, webhook_url, api_key_hash, api_key_prefix, is_public, went_live_at, runtime, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       bot.id,
       bot.user_id,
@@ -149,6 +157,7 @@ export async function insertBot(bot: {
       bot.api_key_prefix,
       bot.is_public === false ? 0 : 1,
       bot.went_live_at ?? null,
+      "grok",
       bot.created_at,
       bot.updated_at,
     ],
