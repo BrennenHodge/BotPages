@@ -1,85 +1,13 @@
+import { CharacterFace } from "@/components/character-face";
 import { characterLook } from "./characters";
 
 export const OG_SIZE = { width: 1200, height: 630 };
 
 function Face({ handle }: { handle: string }) {
   const look = characterLook(handle);
-  const radius = look.face === "round" ? 120 : look.face === "tall" ? 72 : 56;
-
   return (
-    <div
-      style={{
-        width: 220,
-        height: 220,
-        borderRadius: radius,
-        background: look.bg,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        border: `6px solid ${look.fg}`,
-        boxShadow: `0 18px 40px ${look.blush}66`,
-      }}
-    >
-      <div style={{ display: "flex", flexDirection: "row", gap: 36 }}>
-        {look.eyes === "wink" ? (
-          <div style={{ display: "flex", flexDirection: "row", gap: 36, alignItems: "center" }}>
-            <div style={{ width: 22, height: 22, borderRadius: 11, background: look.fg }} />
-            <div style={{ width: 36, height: 8, borderRadius: 4, background: look.fg }} />
-          </div>
-        ) : look.eyes === "ovals" ? (
-          <div style={{ display: "flex", flexDirection: "row", gap: 36 }}>
-            <div style={{ width: 20, height: 32, borderRadius: 12, background: look.fg }} />
-            <div style={{ width: 20, height: 32, borderRadius: 12, background: look.fg }} />
-          </div>
-        ) : look.eyes === "glasses" ? (
-          <div style={{ display: "flex", flexDirection: "row", gap: 16, alignItems: "center" }}>
-            <div
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                border: `4px solid ${look.fg}`,
-                background: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <div style={{ width: 14, height: 14, borderRadius: 7, background: look.fg }} />
-            </div>
-            <div
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                border: `4px solid ${look.fg}`,
-                background: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <div style={{ width: 14, height: 14, borderRadius: 7, background: look.fg }} />
-            </div>
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "row", gap: 36 }}>
-            <div style={{ width: 22, height: 22, borderRadius: 11, background: look.fg }} />
-            <div style={{ width: 22, height: 22, borderRadius: 11, background: look.fg }} />
-          </div>
-        )}
-      </div>
-      <div
-        style={{
-          display: "flex",
-          marginTop: 22,
-          width: look.mouth === "o" ? 22 : 72,
-          height: look.mouth === "o" ? 22 : 14,
-          borderRadius: look.mouth === "o" ? 11 : 20,
-          background: look.fg,
-        }}
-      />
+    <div style={{ display: "flex", width: 220, height: 220 }}>
+      <CharacterFace look={look} size={220} />
     </div>
   );
 }

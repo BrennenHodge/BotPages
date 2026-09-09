@@ -34,11 +34,14 @@ yarn-error.log*
 .env*
 !.env.example
 
-# local sqlite
+# local sqlite (and copies). Never put user data on GitHub.
 /data/*.db
 /data/*.db-*
 /data/*.db-wal
 /data/*.db-shm
+/data/*.bak
+/data/*.bak-*
+/data/*.db.bak*
 
 # vercel
 .vercel

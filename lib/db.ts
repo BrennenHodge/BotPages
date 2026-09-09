@@ -3,11 +3,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { BOT_COLUMN_MIGRATIONS, MESSAGE_COLUMN_MIGRATIONS, POST_COLUMN_MIGRATIONS, SCHEMA_SQL, SCHEMA_VERSION, TABLE_MIGRATIONS } from "./schema";
 
-const globalForDb = globalThis as unknown as {
+  const globalForDb = globalThis as unknown as {
   __cursorBotDb?: Client;
   __cursorBotReady?: Promise<void>;
   __cursorBotSchemaVersion?: number;
   __cursorBotPostsMigrated?: boolean;
+  __cursorBotRuntimeBackfill?: boolean;
 };
 
 function resolveUrl() {
@@ -40,7 +41,14 @@ async function migrateColumns(table: string, migrations: readonly { name: string
   const names = new Set(info.rows.map((row) => String(row.name)));
   for (const column of migrations) {
     if (names.has(column.name)) continue;
-    await getDb().execute(column.sql);
+    try {
+      await getDb().execute(column.sql);
+      names.add(column.name);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/duplicate column name/i.test(message)) throw error;
+      names.add(column.name);
+    }
   }
 }
 
@@ -61,25 +69,35 @@ export async function ensureSchema() {
       await getDb().execute("CREATE INDEX IF NOT EXISTS idx_posts_parent ON posts(parent_id, created_at)");
       globalForDb.__cursorBotPostsMigrated = true;
     }
+    if (!globalForDb.__cursorBotRuntimeBackfill) {
+      await getDb().execute("UPDATE bots SET runtime = 'grok' WHERE runtime IS NULL");
+      globalForDb.__cursorBotRuntimeBackfill = true;
+    }
     return;
   }
-  globalForDb.__cursorBotReady = (async () => {
-    await getDb().executeMultiple(SCHEMA_SQL);
-    await migrateTables(TABLE_MIGRATIONS);
-    await migrateColumns("bots", BOT_COLUMN_MIGRATIONS);
-    await migrateColumns("messages", MESSAGE_COLUMN_MIGRATIONS);
-    await migrateColumns("posts", POST_COLUMN_MIGRATIONS);
-    await getDb().execute("CREATE INDEX IF NOT EXISTS idx_posts_parent ON posts(parent_id, created_at)");
-    globalForDb.__cursorBotPostsMigrated = true;
-    await getDb().execute(
-      `UPDATE bots SET went_live_at = created_at
-       WHERE went_live_at IS NULL AND (
-         TRIM(bio) != '' OR id IN (SELECT DISTINCT bot_id FROM events)
-       )`,
-    );
-    globalForDb.__cursorBotSchemaVersion = SCHEMA_VERSION;
-  })();
+  if (!globalForDb.__cursorBotReady) {
+    globalForDb.__cursorBotReady = (async () => {
+      await getDb().executeMultiple(SCHEMA_SQL);
+      await migrateTables(TABLE_MIGRATIONS);
+      await migrateColumns("bots", BOT_COLUMN_MIGRATIONS);
+      await migrateColumns("messages", MESSAGE_COLUMN_MIGRATIONS);
+      await migrateColumns("posts", POST_COLUMN_MIGRATIONS);
+      await getDb().execute("CREATE INDEX IF NOT EXISTS idx_posts_parent ON posts(parent_id, created_at)");
+      globalForDb.__cursorBotPostsMigrated = true;
+      await getDb().execute(
+        `UPDATE bots SET went_live_at = created_at
+         WHERE went_live_at IS NULL AND (
+           TRIM(bio) != '' OR id IN (SELECT DISTINCT bot_id FROM events)
+         )`,
+      );
+      globalForDb.__cursorBotSchemaVersion = SCHEMA_VERSION;
+    })();
+  }
   await globalForDb.__cursorBotReady;
+  if (!globalForDb.__cursorBotRuntimeBackfill) {
+    await getDb().execute("UPDATE bots SET runtime = 'grok' WHERE runtime IS NULL");
+    globalForDb.__cursorBotRuntimeBackfill = true;
+  }
 }
 
 export async function query<T>(sql: string, args: InValue[] = []) {

@@ -2,10 +2,10 @@ export type CharacterLook = {
   bg: string;
   fg: string;
   blush: string;
-  face: "round" | "squircle" | "tall";
-  eyes: "dots" | "ovals" | "glasses" | "wink";
+  face: "circle" | "square" | "triangle" | "hexagon";
+  eyes: "dots" | "ovals" | "wink" | "winkLeft" | "sleepy";
   mouth: "smile" | "grin" | "smirk" | "o";
-  extra: "none" | "antenna" | "bow" | "hat" | "spark";
+  extra: "none" | "antenna" | "hat" | "spark";
   vibe: string;
 };
 
@@ -14,7 +14,7 @@ const CREW: Record<string, CharacterLook> = {
     bg: "#FFD4B8",
     fg: "#7A2E12",
     blush: "#FF8A5B",
-    face: "round",
+    face: "circle",
     eyes: "ovals",
     mouth: "grin",
     extra: "spark",
@@ -24,7 +24,7 @@ const CREW: Record<string, CharacterLook> = {
     bg: "#C9E4FF",
     fg: "#163A63",
     blush: "#7EB6EA",
-    face: "squircle",
+    face: "square",
     eyes: "dots",
     mouth: "smirk",
     extra: "antenna",
@@ -34,8 +34,8 @@ const CREW: Record<string, CharacterLook> = {
     bg: "#D7F0C8",
     fg: "#2A4A1C",
     blush: "#8FCB6E",
-    face: "tall",
-    eyes: "glasses",
+    face: "triangle",
+    eyes: "dots",
     mouth: "smile",
     extra: "hat",
     vibe: "Maps the whole topic, then pages someone cooler.",
@@ -44,8 +44,8 @@ const CREW: Record<string, CharacterLook> = {
     bg: "#F3E6C8",
     fg: "#4A3514",
     blush: "#E0B56A",
-    face: "round",
-    eyes: "glasses",
+    face: "circle",
+    eyes: "sleepy",
     mouth: "smile",
     extra: "none",
     vibe: "Cuts the adjectives. Voice stays yours.",
@@ -54,7 +54,7 @@ const CREW: Record<string, CharacterLook> = {
     bg: "#C8F0EA",
     fg: "#14524A",
     blush: "#63C7B8",
-    face: "squircle",
+    face: "square",
     eyes: "ovals",
     mouth: "grin",
     extra: "hat",
@@ -64,17 +64,17 @@ const CREW: Record<string, CharacterLook> = {
     bg: "#F3C8F0",
     fg: "#6A1864",
     blush: "#E07AD8",
-    face: "round",
+    face: "circle",
     eyes: "wink",
     mouth: "grin",
-    extra: "bow",
+    extra: "none",
     vibe: "Chaotic helpful. Calendar, but make it glitter.",
   },
   nori: {
     bg: "#C8E8D4",
     fg: "#1C4A32",
     blush: "#6FBF8C",
-    face: "tall",
+    face: "triangle",
     eyes: "ovals",
     mouth: "o",
     extra: "none",
@@ -84,7 +84,7 @@ const CREW: Record<string, CharacterLook> = {
     bg: "#FFF1A8",
     fg: "#6A4A00",
     blush: "#F0C44A",
-    face: "round",
+    face: "hexagon",
     eyes: "dots",
     mouth: "grin",
     extra: "spark",
@@ -92,12 +92,28 @@ const CREW: Record<string, CharacterLook> = {
   },
 };
 
-const FALLBACKS: CharacterLook[] = [
-  { bg: "#FFD6E0", fg: "#6A1830", blush: "#F08AA8", face: "round", eyes: "dots", mouth: "smile", extra: "none", vibe: "New on the block." },
-  { bg: "#D6E4FF", fg: "#1A3060", blush: "#8AABE0", face: "squircle", eyes: "ovals", mouth: "smirk", extra: "antenna", vibe: "New on the block." },
-  { bg: "#E4FFD6", fg: "#2A4A18", blush: "#8ACB6A", face: "tall", eyes: "glasses", mouth: "smile", extra: "none", vibe: "New on the block." },
-  { bg: "#FFE8C8", fg: "#5A3810", blush: "#E0B06A", face: "round", eyes: "wink", mouth: "grin", extra: "bow", vibe: "New on the block." },
-  { bg: "#E8D6FF", fg: "#3A1860", blush: "#B08AE0", face: "squircle", eyes: "dots", mouth: "o", extra: "spark", vibe: "New on the block." },
+/** Twenty peach-family faces: same marks, different shape and expression. */
+export const FALLBACKS: CharacterLook[] = [
+  { bg: "#F3C9B0", fg: "#5A3824", blush: "#D2AE86", face: "circle", eyes: "wink", mouth: "smile", extra: "none", vibe: "New on the block." },
+  { bg: "#F6D4B8", fg: "#5A3824", blush: "#D2AE86", face: "circle", eyes: "dots", mouth: "smile", extra: "none", vibe: "New on the block." },
+  { bg: "#EBC4A8", fg: "#5A3824", blush: "#C9A37A", face: "square", eyes: "wink", mouth: "grin", extra: "none", vibe: "New on the block." },
+  { bg: "#F8DCC4", fg: "#5A3824", blush: "#D2AE86", face: "hexagon", eyes: "dots", mouth: "smile", extra: "none", vibe: "New on the block." },
+  { bg: "#F0C8A8", fg: "#5A3824", blush: "#C9A37A", face: "circle", eyes: "sleepy", mouth: "grin", extra: "none", vibe: "New on the block." },
+  { bg: "#F5D8C0", fg: "#5A3824", blush: "#D2AE86", face: "square", eyes: "dots", mouth: "smile", extra: "none", vibe: "New on the block." },
+  { bg: "#E8BFA0", fg: "#5A3824", blush: "#C9A37A", face: "triangle", eyes: "wink", mouth: "grin", extra: "none", vibe: "New on the block." },
+  { bg: "#F3CDB4", fg: "#5A3824", blush: "#D2AE86", face: "circle", eyes: "ovals", mouth: "smile", extra: "none", vibe: "New on the block." },
+  { bg: "#EED0B4", fg: "#5A3824", blush: "#D2AE86", face: "square", eyes: "winkLeft", mouth: "smirk", extra: "none", vibe: "New on the block." },
+  { bg: "#F6D4B8", fg: "#5A3824", blush: "#C9A37A", face: "hexagon", eyes: "sleepy", mouth: "smile", extra: "none", vibe: "New on the block." },
+  { bg: "#F3C9B0", fg: "#5A3824", blush: "#D2AE86", face: "circle", eyes: "wink", mouth: "grin", extra: "none", vibe: "New on the block." },
+  { bg: "#EBC4A8", fg: "#5A3824", blush: "#D2AE86", face: "square", eyes: "ovals", mouth: "grin", extra: "antenna", vibe: "New on the block." },
+  { bg: "#F8DCC4", fg: "#5A3824", blush: "#C9A37A", face: "triangle", eyes: "dots", mouth: "smirk", extra: "none", vibe: "New on the block." },
+  { bg: "#F0C8A8", fg: "#5A3824", blush: "#D2AE86", face: "circle", eyes: "sleepy", mouth: "smile", extra: "none", vibe: "New on the block." },
+  { bg: "#F5D8C0", fg: "#5A3824", blush: "#C9A37A", face: "square", eyes: "dots", mouth: "o", extra: "none", vibe: "New on the block." },
+  { bg: "#E8BFA0", fg: "#5A3824", blush: "#D2AE86", face: "hexagon", eyes: "winkLeft", mouth: "smile", extra: "none", vibe: "New on the block." },
+  { bg: "#F3CDB4", fg: "#5A3824", blush: "#D2AE86", face: "circle", eyes: "ovals", mouth: "smirk", extra: "none", vibe: "New on the block." },
+  { bg: "#EED0B4", fg: "#5A3824", blush: "#C9A37A", face: "square", eyes: "sleepy", mouth: "grin", extra: "none", vibe: "New on the block." },
+  { bg: "#F6D4B8", fg: "#5A3824", blush: "#D2AE86", face: "triangle", eyes: "ovals", mouth: "grin", extra: "none", vibe: "New on the block." },
+  { bg: "#F3C9B0", fg: "#5A3824", blush: "#D2AE86", face: "hexagon", eyes: "winkLeft", mouth: "smile", extra: "antenna", vibe: "New on the block." },
 ];
 
 function hashHandle(handle: string) {

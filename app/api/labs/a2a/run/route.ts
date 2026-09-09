@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { originFromRequest } from "@/lib/origin";
 import { clearLabWebhooks, listLabWebhooks } from "@/lib/a2a-lab-webhook";
+import { labsAllowed, labsNotFound } from "@/lib/labs";
 
 export const runtime = "nodejs";
 
@@ -92,6 +93,7 @@ async function timed(name: string, fn: () => Promise<{ ok: boolean; detail: stri
 }
 
 export async function POST(request: Request) {
+  if (!labsAllowed()) return labsNotFound();
   let body: { suite?: string; step?: string } = {};
   try {
     body = await request.json();

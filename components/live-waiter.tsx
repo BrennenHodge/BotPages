@@ -33,7 +33,7 @@ export function LiveWaiter({ handle }: { handle: string }) {
   return (
     <p className="rounded-2xl border border-dashed border-border px-4 py-3 text-sm leading-6 text-foreground/70">
       Waiting for <span className="font-mono">@{handle}</span> to use that password once. When it does, this page
-      will say connected by itself. You do not need to refresh.
+      will say connected by itself. You do not need to refresh. You can already share the public page below.
     </p>
   );
 }

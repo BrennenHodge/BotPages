@@ -19,6 +19,10 @@ export type Bot = {
   api_key_prefix: string;
   is_public: boolean;
   went_live_at: string | null;
+  runtime: string | null;
+  platform: string | null;
+  install_host: string | null;
+  origin_seen_at: string | null;
   created_at: string;
   updated_at: string;
 };

@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { createHash } from "node:crypto";
 import { execute, queryOne } from "./db";
 import { getOwnedBot, listBotsByUserId } from "./bots";
 import { makeId } from "./ids";
@@ -12,6 +13,10 @@ const SESSION_DAYS = 14;
 const REVEAL_LEGACY = "__legacy";
 const REVEAL_MAX_CHARS = 3500;
 
+function hashSessionToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
 export async function createSession(userId: string) {
   const id = makeId("ses");
   const token = makeId("tok");
@@ -19,7 +24,7 @@ export async function createSession(userId: string) {
   await execute("INSERT INTO sessions (id, user_id, token, expires_at) VALUES (?, ?, ?, ?)", [
     id,
     userId,
-    token,
+    hashSessionToken(token),
     expires.toISOString(),
   ]);
   return { token, expires };
@@ -81,36 +86,62 @@ export async function setRevealKeyCookie(handle: string, key: string) {
 export async function takeRevealKey(handle?: string) {
   const jar = await cookies();
   const map = parseRevealMap(jar.get(REVEAL_COOKIE)?.value);
+  let taken: string | null = null;
   if (handle) {
-    const named = map[handle.toLowerCase()];
-    if (named) return named;
-    const keys = Object.keys(map);
-    if (map[REVEAL_LEGACY] && keys.length === 1) return map[REVEAL_LEGACY];
-    return null;
+    const key = handle.toLowerCase();
+    taken = map[key] ?? null;
+    if (!taken && map[REVEAL_LEGACY] && Object.keys(map).length === 1) {
+      taken = map[REVEAL_LEGACY];
+      delete map[REVEAL_LEGACY];
+    }
+    if (taken && map[key]) delete map[key];
+  } else {
+    taken = map[REVEAL_LEGACY] ?? Object.values(map)[0] ?? null;
+    if (taken) {
+      const match = Object.entries(map).find(([, value]) => value === taken);
+      if (match) delete map[match[0]];
+    }
   }
-  return map[REVEAL_LEGACY] ?? Object.values(map)[0] ?? null;
+
+  if (Object.keys(map).length === 0) {
+    jar.delete(REVEAL_COOKIE);
+  } else {
+    jar.set(REVEAL_COOKIE, JSON.stringify(map), {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24,
+    });
+  }
+  return taken;
 }
 
 export async function getSessionUser(): Promise<User | null> {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) return null;
+  const hashed = hashSessionToken(token);
   const row = await queryOne<{
     user_id: string;
     email: string;
     created_at: string;
     expires_at: string;
+    token: string;
   }>(
-    `SELECT s.user_id, u.email, u.created_at, s.expires_at
+    `SELECT s.user_id, u.email, u.created_at, s.expires_at, s.token
      FROM sessions s
      JOIN users u ON u.id = s.user_id
-     WHERE s.token = ?`,
-    [token],
+     WHERE s.token = ? OR s.token = ?`,
+    [hashed, token],
   );
   if (!row) return null;
   if (new Date(row.expires_at).getTime() < Date.now()) {
-    await execute("DELETE FROM sessions WHERE token = ?", [token]);
+    await execute("DELETE FROM sessions WHERE token = ? OR token = ?", [hashed, token]);
     return null;
+  }
+  if (row.token === token) {
+    await execute("UPDATE sessions SET token = ? WHERE token = ?", [hashed, token]);
   }
   return { id: row.user_id, email: row.email, created_at: row.created_at };
 }
@@ -124,14 +155,18 @@ export async function destroySession() {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (token) {
-    await execute("DELETE FROM sessions WHERE token = ?", [token]);
+    await execute("DELETE FROM sessions WHERE token = ? OR token = ?", [hashSessionToken(token), token]);
   }
   await clearSessionCookie();
 }
 
 export async function destroyOtherSessions(userId: string, keepToken?: string | null) {
   if (keepToken) {
-    await execute("DELETE FROM sessions WHERE user_id = ? AND token != ?", [userId, keepToken]);
+    await execute("DELETE FROM sessions WHERE user_id = ? AND token != ? AND token != ?", [
+      userId,
+      hashSessionToken(keepToken),
+      keepToken,
+    ]);
     return;
   }
   await execute("DELETE FROM sessions WHERE user_id = ?", [userId]);

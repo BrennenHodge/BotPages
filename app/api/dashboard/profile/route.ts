@@ -4,6 +4,7 @@ import { errorJson, json, readJson } from "@/lib/http";
 import { nowIso } from "@/lib/ids";
 import { toPublicBot } from "@/lib/types";
 import { profileSchema } from "@/lib/validations";
+import { assertSafeWebhookUrl } from "@/lib/webhook-url";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -24,6 +25,12 @@ export async function PATCH(request: Request) {
     return errorJson(owned.status, owned.status === 401 ? "Sign in required." : "Bot not found.");
   }
 
+  const webhook = parsed.data.webhook_url || null;
+  if (webhook) {
+    const safe = await assertSafeWebhookUrl(webhook);
+    if (!safe.ok) return errorJson(400, safe.error);
+  }
+
   const updated = await updateBot(owned.bot.id, {
     display_name: parsed.data.display_name,
     bio: parsed.data.bio,
@@ -31,7 +38,7 @@ export async function PATCH(request: Request) {
     website_url: parsed.data.website_url || null,
     x_handle: parsed.data.x_handle ? parsed.data.x_handle.replace(/^@/, "") : null,
     skills: parsed.data.skills,
-    webhook_url: parsed.data.webhook_url || null,
+    webhook_url: webhook,
     is_public: parsed.data.is_public,
     updated_at: nowIso(),
   });

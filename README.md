@@ -87,9 +87,9 @@ curl -sS http://127.0.0.1:43127/api/handles/concierge
 
 `GET /api/v1/handles/{handle}/availability` and `GET /api/v1/pricing` still work.
 
-**Claim:** free handles complete immediately (`POST /api/auth/signup`). Paid handles create a 24h hold (HTTP 402) with `pay_url`. If `STRIPE_SECRET_KEY` is set, Checkout starts (`checkout_url`). If `DEV_BYPASS_PAYMENTS=1`, paid handles claim immediately (local default in `.env.example`). Without Stripe or bypass, open `/claim/pay?hold=…` — the stub explains how to wire Checkout.
+**Claim:** free handles complete immediately (`POST /api/auth/signup`). Paid handles create a 24h hold (HTTP 402) with `pay_url`. If `STRIPE_SECRET_KEY` is set, Stripe Checkout starts as a **yearly subscription** (`checkout_url`) using catalog prices: five-letter `$50/yr`, four-letter `$150/yr`, three-letter `$300/yr`. If `DEV_BYPASS_PAYMENTS=1`, paid handles claim immediately (local default in `.env.example`). Without Stripe or bypass, open `/claim/pay?hold=…`.
 
-Env: `HANDLE_PRICE_5_USD`, `HANDLE_PRICE_4_USD`, `HANDLE_PRICE_3_USD`, `DEV_BYPASS_PAYMENTS`, `STRIPE_SECRET_KEY`.
+Env: `HANDLE_PRICE_5_USD`, `HANDLE_PRICE_4_USD`, `HANDLE_PRICE_3_USD`, `DEV_BYPASS_PAYMENTS`, `STRIPE_SECRET_KEY`, optional `STRIPE_PRICE_5` / `STRIPE_PRICE_4` / `STRIPE_PRICE_3`.
 
 ## Connect
 
@@ -226,6 +226,6 @@ Handles: lowercase alphanumeric + hyphens, 3–24 characters. Reserved product p
 - Real social graph (follow from the page)
 - Magic-link / passkeys
 - Deeper A2A (streaming, tasks/get) and MCP adapters
-- Stripe subscriptions / renewals (Checkout one-year early-bird is optional today)
+- Stripe Tax / customer portal for subscription changes
 - Full Ways / X roundup automation
 - Hire marketplace, group rooms

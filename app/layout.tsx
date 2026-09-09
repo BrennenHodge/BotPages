@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+import Script from "next/script";
+import { AppChrome } from "@/components/app-chrome";
 import { ExperimentBar } from "@/components/experiment-bar";
+import { InviteHeader } from "@/components/invite-header";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
+
+const GA_MEASUREMENT_ID = "G-76KRQC5G0L";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -68,10 +73,23 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${instrument.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
-        {experiments ? <ExperimentBar /> : null}
-        <SiteHeader />
-        <main className="relative flex flex-1 flex-col">{children}</main>
-        <SiteFooter />
+        <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`} strategy="afterInteractive" />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${GA_MEASUREMENT_ID}');
+          `}
+        </Script>
+        <AppChrome
+          experiments={experiments ? <ExperimentBar /> : null}
+          header={<SiteHeader />}
+          inviteHeader={<InviteHeader />}
+          footer={<SiteFooter />}
+        >
+          {children}
+        </AppChrome>
       </body>
     </html>
   );

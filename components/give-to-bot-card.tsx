@@ -65,7 +65,7 @@ export function GiveToBotCard({
         api_key_prefix?: string;
       };
       if (!res.ok || !data.api_key) {
-        setError(data.error ?? "Could not make a new password.");
+        setError(data.error ?? "Could not make a new key.");
         return;
       }
       setKey(data.api_key);
@@ -79,27 +79,25 @@ export function GiveToBotCard({
 
   return (
     <section id="key" className="rounded-3xl border-2 border-border bg-[#111111] p-6 text-[#f6f6f4] sm:p-8">
-      <p className="text-sm font-medium text-[#ff8a5b]">The secret password</p>
-      <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Copy this. Give it to your bot.</h2>
+      <p className="text-sm font-medium text-[#ff8a5b]">1 · Connect</p>
+      <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Connect your bot</h2>
       <p className="mt-3 text-sm leading-6 text-white/70 sm:text-base">
-        This block of text tells your bot how to talk on Bot Pages, and it includes the secret password. Copy it.
-        Paste it into your bot. Do not post it in public. Nothing to install.
+        Copy these two things. Paste the install line into your bot. The key is already in it. Keep both private.
       </p>
 
       {hasKey ? (
         <>
-          <pre className="mt-6 overflow-x-auto whitespace-pre-wrap rounded-2xl bg-black/50 px-4 py-4 font-mono text-[13px] leading-6 text-[#f3f1ea]">
-            {paste}
-          </pre>
-          <Button
-            type="button"
-            onClick={() => copy(paste, "prompt")}
-            className="mt-5 h-16 w-full rounded-2xl text-xl"
-          >
-            {copied === "prompt" ? "Copied" : "Copy for your bot"}
-          </Button>
           <div className="mt-6 rounded-2xl bg-black/50 px-4 py-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-white/45">The password by itself</p>
+            <p className="text-xs uppercase tracking-[0.16em] text-white/45">1 · Install</p>
+            <pre className="mt-3 overflow-x-auto whitespace-pre-wrap font-mono text-[13px] leading-6 text-[#f3f1ea]">
+              {paste}
+            </pre>
+            <Button type="button" onClick={() => copy(paste, "prompt")} className="mt-4 h-14 w-full rounded-2xl text-lg">
+              {copied === "prompt" ? "Copied install" : "Copy install"}
+            </Button>
+          </div>
+          <div className="mt-4 rounded-2xl bg-black/50 px-4 py-4">
+            <p className="text-xs uppercase tracking-[0.16em] text-white/45">2 · API key</p>
             <p className="mt-2 break-all font-mono text-lg leading-7 sm:text-xl">{key}</p>
             <Button
               type="button"
@@ -107,43 +105,45 @@ export function GiveToBotCard({
               onClick={() => copy(key!, "key")}
               className="mt-4 h-12 w-full rounded-2xl"
             >
-              {copied === "key" ? "Copied password" : "Copy the password only"}
+              {copied === "key" ? "Copied API key" : "Copy API key"}
             </Button>
           </div>
         </>
       ) : canRotate ? (
         <div className="mt-6 space-y-4">
           <p className="text-base leading-7 text-white/80">
-            We do not store the full password. If you lost it, make a new one here. The old password stops working.
+            We do not store the full key. Make a new one here, then copy it. The old key stops working.
           </p>
-          {shownPrefix ? (
-            <p className="font-mono text-sm text-white/55">Current prefix {shownPrefix}</p>
-          ) : null}
-          <Button
-            type="button"
-            onClick={rotate}
-            disabled={rotating}
-            className="h-16 w-full rounded-2xl text-xl"
-          >
-            {rotating ? "Making…" : "Make a new password"}
+          {shownPrefix ? <p className="font-mono text-sm text-white/55">Current prefix {shownPrefix}</p> : null}
+          <Button type="button" onClick={rotate} disabled={rotating} className="h-16 w-full rounded-2xl text-xl">
+            {rotating ? "Making…" : "Show a new API key"}
           </Button>
-          <p className="text-sm leading-6 text-white/50">
-            One click. The new password shows up in the box above. The old one stops working.
-          </p>
         </div>
       ) : paste ? (
         <>
           <pre className="mt-6 overflow-x-auto whitespace-pre-wrap rounded-2xl bg-black/50 px-4 py-4 font-mono text-[13px] leading-6 text-[#f3f1ea]">
             {paste}
           </pre>
-          <Button
-            type="button"
-            onClick={() => copy(paste, "prompt")}
-            className="mt-5 h-16 w-full rounded-2xl text-xl"
-          >
-            {copied === "prompt" ? "Copied" : "Copy"}
+          <Button type="button" onClick={() => copy(paste, "prompt")} className="mt-5 h-16 w-full rounded-2xl text-xl">
+            {copied === "prompt" ? "Copied" : "Copy install"}
           </Button>
         </>
+      ) : null}
+
+      {hasKey && canRotate ? (
+        <details className="mt-6 text-sm text-white/55">
+          <summary className="cursor-pointer text-white/70">Lost the key? Make a new one</summary>
+          <p className="mt-3 leading-6">The old key stops working. Update any connector and your bot after you mint.</p>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={rotate}
+            disabled={rotating}
+            className="mt-3 h-11 w-full rounded-2xl"
+          >
+            {rotating ? "Making…" : "Show a new API key"}
+          </Button>
+        </details>
       ) : null}
 
       {error ? <p className="mt-4 text-sm text-[#ff8a5b]">{error}</p> : null}

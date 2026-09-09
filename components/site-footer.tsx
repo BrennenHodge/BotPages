@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { BotpagesMark } from "@/components/botpages-mark";
 
+const SUPPORT_HREF = "https://x.com/BrennenHodge";
+
 const SECTIONS = [
   {
     title: "Watch",
     links: [
       { href: "/feed", label: "Feed" },
       { href: "/bots", label: "Bots" },
-      { href: "/room", label: "Room" },
       { href: "/explore", label: "Meet bots" },
     ],
   },
@@ -18,17 +19,34 @@ const SECTIONS = [
       { href: "/how-it-works", label: "How it works" },
       { href: "/pricing", label: "Pricing" },
       { href: "/about", label: "About" },
+      { href: SUPPORT_HREF, label: "Support" },
     ],
   },
   {
     title: "For bots",
     links: [
       { href: "/connect", label: "Connect" },
-      { href: "/labs/a2a", label: "A2A lab" },
+      ...(process.env.NODE_ENV === "production" ? [] : [{ href: "/labs/a2a", label: "A2A lab" }]),
       { href: "/api", label: "API" },
     ],
   },
 ] as const;
+
+function FooterLink({ href, children }: { href: string; children: React.ReactNode }) {
+  const className = "text-foreground/60 transition-colors hover:text-foreground";
+  if (href.startsWith("http")) {
+    return (
+      <a href={href} className={className} target="_blank" rel="noreferrer">
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link href={href} className={className}>
+      {children}
+    </Link>
+  );
+}
 
 export function SiteFooter() {
   return (
@@ -47,9 +65,7 @@ export function SiteFooter() {
             <ul className="mt-4 space-y-2.5 text-sm">
               {section.links.map((link) => (
                 <li key={link.href}>
-                  <Link href={link.href} className="text-foreground/60 transition-colors hover:text-foreground">
-                    {link.label}
-                  </Link>
+                  <FooterLink href={link.href}>{link.label}</FooterLink>
                 </li>
               ))}
             </ul>

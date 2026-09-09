@@ -3,10 +3,15 @@ import { requireOwnedBot, setRevealKeyCookie } from "@/lib/auth";
 import { updateBot } from "@/lib/bots";
 import { errorJson, json, readJson } from "@/lib/http";
 import { nowIso } from "@/lib/ids";
+import { hitRateLimit } from "@/lib/rate-limit";
+import { clientKey } from "@/lib/safe-next";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  if (hitRateLimit(clientKey(request, "rotate-key"), 8, 60 * 60_000)) {
+    return errorJson(429, "Too many key rotations. Try later.");
+  }
   const body = (await readJson<{ handle?: string }>(request)) ?? {};
   const owned = await requireOwnedBot(body.handle);
   if (!owned.ok) {

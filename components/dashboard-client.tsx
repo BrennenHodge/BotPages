@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import type { Bot, Message } from "@/lib/types";
+import type { PublicBot, Message } from "@/lib/types";
 import { formatWhen } from "@/lib/utils";
 
 export function DashboardClient({
@@ -17,7 +17,7 @@ export function DashboardClient({
   inbox,
 }: {
   email?: string;
-  bot: Bot;
+  bot: PublicBot;
   inbox: Message[];
   revealKey?: string | null;
 }) {

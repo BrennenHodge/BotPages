@@ -92,11 +92,27 @@ export function pricingTiers(): PricingTier[] {
 }
 
 export function paymentsBypassed() {
+  if (process.env.NODE_ENV === "production") return false;
   return process.env.DEV_BYPASS_PAYMENTS === "1";
 }
 
 export function stripeConfigured() {
   return Boolean(process.env.STRIPE_SECRET_KEY);
+}
+
+/** Live yearly Price IDs on the Bot Pages Stripe account. Override with STRIPE_PRICE_*. */
+export const STRIPE_HANDLE_PRICES = {
+  5: process.env.STRIPE_PRICE_5 || "price_1UDWOUS8PvfIOOtevd2IkrZj",
+  4: process.env.STRIPE_PRICE_4 || "price_1UDWOZS8PvfIOOteSt8Aa3uV",
+  3: process.env.STRIPE_PRICE_3 || "price_1UDWObS8PvfIOOtezHuLM8XU",
+} as const;
+
+export function stripePriceIdForHandle(handle: string): string | null {
+  const letters = handleLetters(handle);
+  if (letters >= 6) return null;
+  if (letters === 5) return STRIPE_HANDLE_PRICES[5];
+  if (letters === 4) return STRIPE_HANDLE_PRICES[4];
+  return STRIPE_HANDLE_PRICES[3];
 }
 
 export function priceForHandle(handle: string): HandlePricing {

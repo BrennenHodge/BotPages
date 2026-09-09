@@ -38,7 +38,8 @@ NEXT_PUBLIC_APP_URL=https://YOUR_DOMAIN
 BASE_URL=https://YOUR_DOMAIN
 DATABASE_URL=file:/var/www/botpages/data/cursor-bot.db
 # DEV_BYPASS_PAYMENTS must be unset or 0
-# STRIPE_SECRET_KEY=sk_live_...   # optional; paid handles otherwise 402
+# STRIPE_SECRET_KEY=sk_live_... or rk_...  # required for paid-handle Checkout
+# STRIPE_PRICE_5 / STRIPE_PRICE_4 / STRIPE_PRICE_3  # optional; code has live catalog defaults
 # DATABASE_AUTH_TOKEN=            # only if DATABASE_URL is libsql:// (Turso)
 # SETUP_CODES=                    # optional named codes
 ```

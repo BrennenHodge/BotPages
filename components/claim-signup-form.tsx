@@ -83,20 +83,32 @@ export function ClaimSignupForm({
           display_name: displayName || undefined,
         }),
       });
-      const data = (await res.json()) as {
+      const raw = await res.text();
+      let data: {
         error?: string;
         api_key?: string;
         handle?: string;
         checkout_url?: string;
         pay_url?: string;
         payment_required?: boolean;
-      };
+      } = {};
+      try {
+        data = raw ? (JSON.parse(raw) as typeof data) : {};
+      } catch {
+        setError(res.ok ? "Network wobble. Try once more." : "Checkout didn’t start. Try once more.");
+        return;
+      }
       if (res.status === 402 || data.payment_required) {
         const fallbackInvite = inviteCode || inviteHandle;
         const fallback = fallbackInvite
           ? `/claim?handle=${encodeURIComponent(handle)}&invite=${encodeURIComponent(fallbackInvite)}`
           : `/claim?handle=${encodeURIComponent(handle)}`;
-        router.push(data.checkout_url || data.pay_url || fallback);
+        const dest = data.checkout_url || data.pay_url || fallback;
+        if (/^https?:\/\//i.test(dest)) {
+          window.location.assign(dest);
+        } else {
+          router.push(dest);
+        }
         return;
       }
       if (!res.ok) {
@@ -126,31 +138,29 @@ export function ClaimSignupForm({
           dashboardHint
         >
           <div className="flex flex-wrap gap-2">
-            <Button asChild className="rounded-full">
+            <Button asChild variant={inviteCode ? "secondary" : "default"} className="rounded-full">
               <Link href={`/${claimed}`}>See this bot’s public page</Link>
             </Button>
             {inviteCode ? (
-              <Button asChild variant="secondary" className="rounded-full">
-                <Link href={`/i/${encodeURIComponent(inviteCode)}`}>Accept invite</Link>
+              <Button asChild className="rounded-full">
+                <Link href={`/i/${encodeURIComponent(inviteCode)}?as=${encodeURIComponent(claimed)}`}>
+                  Connect to their bot
+                </Link>
               </Button>
             ) : inviteHandle ? (
+              <>
+                <Button asChild variant="secondary" className="rounded-full">
+                  <Link href={`/@${inviteHandle}`}>Talk to @{inviteHandle}</Link>
+                </Button>
+                <Button asChild variant="secondary" className="rounded-full">
+                  <Link href={`/connect?invite=${encodeURIComponent(inviteHandle)}`}>Connect to message them</Link>
+                </Button>
+              </>
+            ) : (
               <Button asChild variant="secondary" className="rounded-full">
-                <Link href={`/@${inviteHandle}`}>Talk to @{inviteHandle}</Link>
+                <Link href={`/dashboard/${claimed}`}>Edit this bot’s page</Link>
               </Button>
-            ) : null}
-            <Button asChild variant="secondary" className="rounded-full">
-              <Link
-                href={
-                  inviteCode
-                    ? `/i/${encodeURIComponent(inviteCode)}`
-                    : inviteHandle
-                      ? `/connect?invite=${encodeURIComponent(inviteHandle)}`
-                      : `/dashboard/${claimed}`
-                }
-              >
-                {inviteCode || inviteHandle ? "Connect to message them" : "Edit this bot’s page"}
-              </Link>
-            </Button>
+            )}
           </div>
         </ConnectRitual>
       </div>
@@ -159,7 +169,7 @@ export function ClaimSignupForm({
 
   const inviteBanner = inviteCode ? (
     <p className="mb-5 rounded-2xl border border-[#17120e]/10 bg-[#fff6eb] px-4 py-3 text-sm leading-6 text-foreground/80">
-      Grab a name, then you can accept the invite and connect your bots.
+      Grab a name first. You don’t need one yet — that’s what this invite is for.
     </p>
   ) : inviteHandle ? (
     <p className="mb-5 rounded-2xl border border-[#17120e]/10 bg-[#fff6eb] px-4 py-3 text-sm leading-6 text-foreground/80">

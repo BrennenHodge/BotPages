@@ -1,3 +1,4 @@
+import { originFromBot, type BotOrigin } from "./bot-origin";
 import { getEventType } from "./catalog";
 import { addDays, utcDay } from "./dates";
 import { query } from "./db";
@@ -29,8 +30,31 @@ export type FleetBotCard = {
   inbox: number;
   lastMail: FleetMail | null;
   lastDid: FleetDid | null;
+  origin: BotOrigin;
   weekScore: number;
   totalScore: number;
+};
+
+export type FleetChatBubble = {
+  id: string;
+  from: string;
+  to: string;
+  text: string;
+  at: string;
+  side: "left" | "right";
+};
+
+export type FleetPeer = {
+  handle: string;
+  origin: BotOrigin;
+};
+
+export type FleetConversation = {
+  id: string;
+  left: FleetPeer;
+  right: FleetPeer;
+  bubbles: FleetChatBubble[];
+  at: string;
 };
 
 export type FleetPulseItem =
@@ -38,11 +62,18 @@ export type FleetPulseItem =
   | { kind: "did"; botHandle: string; label: string; at: string };
 
 function senderLabel(row: { sender_type: string; sender_handle: string | null; sender_name: string | null }) {
-  if (row.sender_type === "bot" && row.sender_handle) return `@${row.sender_handle}`;
-  return row.sender_name?.trim() || "Someone";
+  if (row.sender_type === "bot" && row.sender_handle) return row.sender_handle;
+  return row.sender_name?.trim() || "someone";
+}
+
+function pairKey(a: string, b: string) {
+  return [a.toLowerCase(), b.toLowerCase()].sort().join("::");
 }
 
 export async function getFleetDesk(bots: Bot[]) {
+  const originByHandle = new Map(bots.map((bot) => [bot.handle, originFromBot(bot)]));
+  const originFor = (handle: string): BotOrigin => originByHandle.get(handle) ?? originFromBot({});
+
   const cards: FleetBotCard[] = bots.map((bot) => ({
     id: bot.id,
     handle: bot.handle,
@@ -53,6 +84,7 @@ export async function getFleetDesk(bots: Bot[]) {
     inbox: 0,
     lastMail: null,
     lastDid: null,
+    origin: originFromBot(bot),
     weekScore: 0,
     totalScore: 0,
   }));
@@ -62,6 +94,7 @@ export async function getFleetDesk(bots: Bot[]) {
     return {
       cards,
       pulse: [] as FleetPulseItem[],
+      conversations: [] as FleetConversation[],
       unread: 0,
       live: 0,
       needsPaste: 0,
@@ -109,7 +142,7 @@ export async function getFleetDesk(bots: Bot[]) {
     const card = byId.get(row.recipient_bot_id);
     if (!card) continue;
     card.lastMail = {
-      from: senderLabel(row),
+      from: `@${senderLabel(row).replace(/^@/, "")}`,
       text: row.text.trim(),
       at: row.created_at,
     };
@@ -152,51 +185,82 @@ export async function getFleetDesk(bots: Bot[]) {
   }
 
   const recentMail = await query<{
-    recipient_bot_id: string;
+    id: string;
+    recipient_handle: string;
     sender_type: string;
     sender_handle: string | null;
     sender_name: string | null;
     text: string;
     created_at: string;
   }>(
-    `SELECT recipient_bot_id, sender_type, sender_handle, sender_name, text, created_at
-     FROM messages
-     WHERE recipient_bot_id IN (${inList})
-     ORDER BY created_at DESC
-     LIMIT 12`,
+    `SELECT m.id, b.handle as recipient_handle, m.sender_type, m.sender_handle, m.sender_name, m.text, m.created_at
+     FROM messages m
+     INNER JOIN bots b ON b.id = m.recipient_bot_id
+     WHERE m.recipient_bot_id IN (${inList})
+     ORDER BY m.created_at DESC
+     LIMIT 80`,
     ids,
   );
+
+  const groups = new Map<
+    string,
+    { from: string; to: string; text: string; at: string; id: string }[]
+  >();
+  for (const row of recentMail) {
+    const to = row.recipient_handle;
+    const fromRaw = senderLabel(row);
+    const from = fromRaw.replace(/^@/, "");
+    const key = pairKey(from, to);
+    const list = groups.get(key) ?? [];
+    list.push({ id: row.id, from, to, text: row.text.trim(), at: row.created_at });
+    groups.set(key, list);
+  }
+
+  const conversations: FleetConversation[] = [...groups.entries()]
+    .map(([id, rows]) => {
+      const chronological = [...rows].sort((a, b) => a.at.localeCompare(b.at));
+      const first = chronological[0];
+      const right = first.from;
+      const left = first.to === right ? (chronological.find((row) => row.from !== right)?.from ?? first.to) : first.to;
+      return {
+        id,
+        left: { handle: left, origin: originFor(left) },
+        right: { handle: right, origin: originFor(right) },
+        bubbles: chronological.map((row) => ({
+          id: row.id,
+          from: row.from,
+          to: row.to,
+          text: row.text,
+          at: row.at,
+          side: row.from === right ? ("right" as const) : ("left" as const),
+        })),
+        at: chronological[chronological.length - 1]?.at ?? first.at,
+      };
+    })
+    .sort((a, b) => b.at.localeCompare(a.at))
+    .slice(0, 8);
+
   const recentDid = await query<{ bot_id: string; type: string; created_at: string }>(
     `SELECT bot_id, type, created_at
      FROM events
-     WHERE bot_id IN (${inList})
+     WHERE bot_id IN (${inList}) AND type != 'messages_sent'
      ORDER BY created_at DESC
-     LIMIT 12`,
+     LIMIT 8`,
     ids,
   );
 
   const handleById = new Map(bots.map((bot) => [bot.id, bot.handle]));
-  const pulse: FleetPulseItem[] = [
-    ...recentMail.map((row) => ({
-      kind: "mail" as const,
-      botHandle: handleById.get(row.recipient_bot_id) ?? "unknown",
-      from: senderLabel(row),
-      text: row.text.trim(),
-      at: row.created_at,
-    })),
-    ...recentDid.map((row) => ({
-      kind: "did" as const,
-      botHandle: handleById.get(row.bot_id) ?? "unknown",
-      label: getEventType(row.type)?.label ?? row.type.replace(/_/g, " "),
-      at: row.created_at,
-    })),
-  ]
-    .sort((a, b) => b.at.localeCompare(a.at))
-    .slice(0, 14);
+  const pulse: FleetPulseItem[] = recentDid.map((row) => ({
+    kind: "did" as const,
+    botHandle: handleById.get(row.bot_id) ?? "unknown",
+    label: getEventType(row.type)?.label ?? row.type.replace(/_/g, " "),
+    at: row.created_at,
+  }));
 
   return {
     cards,
     pulse,
+    conversations,
     unread: cards.reduce((sum, card) => sum + card.unread, 0),
     live: cards.filter((card) => card.live).length,
     needsPaste: cards.filter((card) => !card.live).length,

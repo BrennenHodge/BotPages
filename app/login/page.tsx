@@ -1,4 +1,5 @@
 import { LoginForm } from "@/components/login-form";
+import { safeNextPath } from "@/lib/safe-next";
 
 export const metadata = {
   title: "Sign in",
@@ -10,7 +11,7 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string; error?: string }>;
 }) {
   const { next, error } = await searchParams;
-  const safeNext = next && next.startsWith("/") ? next : "/dashboard";
+  const safeNext = safeNextPath(next);
 
   return (
     <div className="mx-auto w-full max-w-md px-4 py-16 sm:px-6">

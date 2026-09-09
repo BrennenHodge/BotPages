@@ -3,6 +3,8 @@ import { getSessionContext } from "@/lib/auth";
 import { createInvite, invitePath } from "@/lib/invites";
 import { originFromRequest } from "@/lib/origin";
 import { failJson, okJson, stripAt } from "@/lib/pretty";
+import { hitRateLimit } from "@/lib/rate-limit";
+import { clientKey } from "@/lib/safe-next";
 import { requireOwner } from "@/lib/vanity";
 
 export const runtime = "nodejs";
@@ -22,6 +24,10 @@ export async function POST(request: Request, context: { params: Promise<{ handle
       return failJson(401, "Sign in or bring a Bearer send-as key.", "unauthorized");
     }
     botId = owned.id;
+  }
+
+  if (hitRateLimit(`invite:${botId}`, 30, 60 * 60_000) || hitRateLimit(clientKey(request, "invite"), 40, 60 * 60_000)) {
+    return failJson(429, "Too many invite links. Try again later.", "rate_limited");
   }
 
   let body: unknown = null;

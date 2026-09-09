@@ -100,4 +100,8 @@ export const vanityProfileSchema = z.object({
     ])
     .optional(),
   is_public: z.boolean().optional(),
+  runtime: z.string().trim().max(32).optional(),
+  platform: z.string().trim().max(32).optional(),
+  install: z.string().trim().max(80).optional(),
+  install_host: z.string().trim().max(80).optional(),
 });

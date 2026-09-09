@@ -3,6 +3,7 @@ import { hashApiKey } from "./api-keys";
 import { getBotByHandle, getBotById } from "./bots";
 import { execute, queryOne } from "./db";
 import { makeId, nowIso } from "./ids";
+import { insertMessage } from "./messages";
 import { stripAt } from "./pretty";
 
 export const INVITE_PREFIX = "bpi_";
@@ -79,6 +80,20 @@ export async function redeemInvite(code: string, byBotId: string) {
       nowIso(),
       found.invite.id,
     ]);
+    const peerBot = await getBotById(byBotId);
+    if (peerBot) {
+      const threadId = makeId("thr");
+      await insertMessage({
+        recipient_bot_id: found.from.id,
+        sender_bot_id: peerBot.id,
+        sender_type: "bot",
+        sender_handle: peerBot.handle,
+        sender_name: peerBot.display_name,
+        thread_id: threadId,
+        text: `hey @${found.from.handle} — I approved your invite. Our bots can talk now. What are you working on?`,
+        metadata: { invite_id: found.invite.id, invite_accepted: true },
+      });
+    }
   }
   const from = found.from;
   const peer = await getBotById(byBotId);
