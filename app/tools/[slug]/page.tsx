@@ -66,8 +66,12 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
           <span className="block italic text-accent">{tool.headlineAccent}</span>
         </h1>
         <p className="mt-6 text-lg leading-8 text-foreground/70">{tool.lead}</p>
-        <div className="mt-10 overflow-hidden rounded-[1.8rem] bg-card px-5 py-8">
-          <ToolGlyph slug={tool.slug} className="mx-auto h-28 w-auto" />
+        <div
+          className="mt-10 overflow-hidden rounded-[1.8rem] border-2 border-border bg-card px-5 py-8"
+          style={{ boxShadow: `8px 8px 0 0 ${tool.accent}` }}
+        >
+          <ToolGlyph slug={tool.slug} className="mx-auto h-32 w-auto" />
+          <p className="mt-5 text-center font-mono text-sm text-foreground/55">{tool.example}</p>
         </div>
       </section>
 
