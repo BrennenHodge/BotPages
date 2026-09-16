@@ -1,5 +1,6 @@
+import { ArrowUpRight } from "lucide-react";
 import type { ReactNode } from "react";
-import type { ToolSlug } from "@/lib/tools";
+import type { ToolListing, ToolSlug } from "@/lib/tools";
 
 const ink = "#17120e";
 
@@ -14,14 +15,14 @@ function Face({ bg, x, y = 18 }: { bg: string; x: number; y?: number }) {
   );
 }
 
-/** Hero: the seven tools as a body on the network. */
+/** Hero: seven directory categories around a named bot. */
 export function ToolsOrchestra() {
   return (
     <svg
       viewBox="0 0 560 300"
       className="mx-auto h-auto w-full max-w-xl"
       role="img"
-      aria-label="A bot surrounded by identity, phone, email, cards, crypto, secrets, and a browser"
+      aria-label="Directory categories agents use: identity, phone, email, cards, crypto, secrets, and browser"
     >
       <ellipse cx="280" cy="286" rx="130" ry="10" fill={ink} opacity="0.08" />
       <Face bg="#FFD4B8" x={248} y={108} />
@@ -105,7 +106,7 @@ export function ToolsOrchestra() {
         <rect x="10" y="10" width="76" height="28" rx="6" fill="#FFD4B8" stroke={ink} strokeWidth="2" />
         <circle cx="68" cy="30" r="5" fill="#ff4d2e" />
         <text x="48" y="66" textAnchor="middle" fontSize="11" fontFamily="ui-sans-serif, system-ui" fill={ink}>
-          hands
+          browser
         </text>
       </g>
     </svg>
@@ -214,5 +215,42 @@ export function ToolGlyph({ slug, className }: { slug: ToolSlug; className?: str
     <svg viewBox="0 0 148 88" className={className} role="img" aria-hidden="true">
       <Glyph />
     </svg>
+  );
+}
+
+export function ToolEntryCard({ listing }: { listing: ToolListing }) {
+  return (
+    <a
+      href={listing.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="soft-card group flex h-full flex-col rounded-[1.5rem] px-5 py-6 text-left transition-transform active:scale-[0.99]"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <h3 className="font-display text-xl leading-tight">{listing.name}</h3>
+        <ArrowUpRight
+          size={18}
+          strokeWidth={2}
+          className="mt-1 shrink-0 text-foreground/35 transition-colors group-hover:text-accent"
+          aria-hidden="true"
+        />
+      </div>
+      <p className="mt-2 text-sm leading-6 text-foreground/65">{listing.blurb}</p>
+      <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-4">
+        {listing.pricingHint ? (
+          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-foreground/55">
+            {listing.pricingHint}
+          </span>
+        ) : null}
+        {listing.tags?.map((tag) => (
+          <span
+            key={tag}
+            className="rounded-full border border-foreground/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-foreground/45"
+          >
+            {tag}
+          </span>
+        ))}
+      </div>
+    </a>
   );
 }
