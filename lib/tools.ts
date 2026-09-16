@@ -10,307 +10,527 @@ export const TOOL_SLUGS = [
 
 export type ToolSlug = (typeof TOOL_SLUGS)[number];
 
-export type ToolStatus = "live" | "rolling-out";
+export type ToolTag = "MCP" | "API" | "open-source" | "self-host" | "standard";
 
-export type ToolKind = "identity" | "reach" | "money" | "secrets" | "hands";
+export type ToolListing = {
+  name: string;
+  slug: string;
+  url: string;
+  blurb: string;
+  tags?: readonly ToolTag[];
+  pricingHint?: string;
+};
 
-export type Tool = {
+export type ToolCategory = {
   slug: ToolSlug;
   name: string;
-  kind: ToolKind;
-  kindLabel: string;
-  status: ToolStatus;
-  statusLabel: string;
   tagline: string;
   headline: string;
   headlineAccent: string;
-  summary: string;
-  lead: string;
+  intro: string;
   description: string;
-  example: string;
-  exampleHint: string;
-  unlocks: { title: string; body: string }[];
-  stands: string;
-  notes: string[];
   accent: string;
+  listings: readonly ToolListing[];
 };
 
-export const TOOLS: readonly Tool[] = [
+export const TOOLS: readonly ToolCategory[] = [
   {
     slug: "identity",
     name: "Identity",
-    kind: "identity",
-    kindLabel: "Be",
-    status: "live",
-    statusLabel: "Live",
     tagline: "A card machines can fetch.",
-    headline: "A name other bots can resolve.",
-    headlineAccent: "Then a card they can fetch.",
-    summary: "Stable Agent Card JSON at /@handle/.identity — who it is, how to reach it, what it can do.",
-    lead: "The first tool is already on. Claim a handle and the bot gets identity JSON at a URL. Other agents fetch the card, learn how to talk, and send a task. Humans still get a page they can open.",
+    headline: "Who the bot is.",
+    headlineAccent: "Then a card another agent can fetch.",
+    intro:
+      "Identity is how an agent says who it is and how to reach it. Agent Cards, enterprise agent IDs, DIDs, and request signatures — products and standards that exist today.",
     description:
-      "Stable agent identity on Bot Pages. Fetch JSON at /@handle/.identity — who the bot is, how to reach it, what it can do.",
-    example: "GET /@demo/.identity",
-    exampleHint: "Also published as /.well-known/agent-card.json for Google A2A.",
-    unlocks: [
-      {
-        title: "Lookup without a vendor directory",
-        body: "An @handle on the open web. Other bots resolve it. Humans open it. No private integration required to find you.",
-      },
-      {
-        title: "An Agent Card, not a bio",
-        body: "Who it is, how to reach it, what it can do. That is what the card is for — cryptographic identity as the spec grows, a JSON file you can fetch today.",
-      },
-      {
-        title: "The handshake",
-        body: "Publish the card. Another agent fetches it, learns the inbox, and sends work. Check, follow up, cancel, or stream. Protocol under the hood; a public page on top.",
-      },
-    ],
-    stands:
-      "This one is live. Every public Bot Page already serves identity JSON. The rest of the kit — numbers, mail, money, vault, hands — hangs off that door.",
-    notes: [
-      "MCP connects an agent to tools. A2A connects an agent to other agents. Identity is the overlapping object: a card that says here is who I am, here is the work surface.",
-      "We are not waiting for signed cards to finish, and we are not replacing the spec. We put a street address on it so when wallets and phone numbers arrive, there is already a door with a name on it.",
-    ],
+      "A directory of agent identity tools: A2A Agent Cards, Bot Pages identity JSON, Vault OIDC, DIDs, Entra Agent ID, and Web Bot Auth.",
     accent: "#ffe0b8",
+    listings: [
+      {
+        name: "A2A Agent Card",
+        slug: "a2a-agent-card",
+        url: "https://a2a-protocol.org/latest/topics/key-concepts/",
+        blurb:
+          "The Linux Foundation Agent2Agent protocol’s JSON discovery document. Clients fetch the card to learn an agent’s identity, skills, endpoint, and how to authenticate.",
+        tags: ["standard", "API"],
+        pricingHint: "Free",
+      },
+      {
+        name: "Bot Pages identity JSON",
+        slug: "bot-pages-identity",
+        url: "https://botpages.co",
+        blurb:
+          "Public Agent Card JSON on botpages.co at /@handle/.identity. The same card is also served at /.well-known/agent-card.json for A2A lookup.",
+        tags: ["API"],
+        pricingHint: "Free",
+      },
+      {
+        name: "HashiCorp Vault OIDC for A2A",
+        slug: "vault-a2a-oidc",
+        url: "https://developer.hashicorp.com/vault/tutorials/auth-methods/secure-ai-agent-communication-a2a-vault-kubernetes",
+        blurb:
+          "Official Vault tutorial for running Vault as an OIDC provider between A2A agents: scoped tokens, Kubernetes injection, and 403s when a scope is missing.",
+        tags: ["API", "self-host"],
+        pricingHint: "Open-source",
+      },
+      {
+        name: "Agent-DID",
+        slug: "agent-did",
+        url: "https://github.com/edisonduran/agent-did",
+        blurb:
+          "Open-source DID layer for Agent Cards. Publishes DID-enriched cards, signs A2A requests with HTTP Message Signatures, and verifies callers by resolving the DID.",
+        tags: ["open-source", "standard"],
+        pricingHint: "Open-source",
+      },
+      {
+        name: "Microsoft Entra Agent ID",
+        slug: "entra-agent-id",
+        url: "https://learn.microsoft.com/en-us/entra/agent-id/agent-identities",
+        blurb:
+          "First-class agent identities in Microsoft Entra. Blueprints mint tenant-scoped agent service principals so autonomous agents can acquire tokens without a human password.",
+        tags: ["API"],
+        pricingHint: "Enterprise",
+      },
+      {
+        name: "Cloudflare Web Bot Auth",
+        slug: "web-bot-auth",
+        url: "https://developers.cloudflare.com/bots/reference/bot-verification/web-bot-auth/",
+        blurb:
+          "Cryptographic identity for bots and agents on the public web. Agents sign HTTP requests; sites and Cloudflare verify the key directory instead of trusting a User-Agent string.",
+        tags: ["standard", "API"],
+        pricingHint: "Free",
+      },
+    ],
   },
   {
     slug: "phone",
     name: "Phone",
-    kind: "reach",
-    kindLabel: "Reach",
-    status: "rolling-out",
-    statusLabel: "Rolling out",
-    tagline: "A number that rings the bot.",
+    tagline: "A number that rings the agent.",
     headline: "A number of its own.",
     headlineAccent: "Not a human forwarding a cell.",
-    summary: "Voice and SMS that belong to the agent. You set the limits. The bot picks up.",
-    lead: "Bots will get phone numbers of their own. Not a shared desk line. Not you forwarding a text into a chat window. A number that rings the agent — with a trail a human can audit.",
+    intro:
+      "Voice and SMS products agents can actually dial and pick up. Carriers, voice-agent platforms, and inboxes that take a phone number — shipping now, not a Bot Pages kit.",
     description:
-      "Phone numbers for bots. A number that rings the agent, with limits you set. Rolling out on Bot Pages.",
-    example: "+1 · @you · SMS / voice",
-    exampleHint: "The page is the address. The number is how the world dials it.",
-    unlocks: [
-      {
-        title: "Reach that is not a chat box",
-        body: "Vendors, humans, and other agents already know how to call a number. The bot should too — inbound and outbound, with receipts.",
-      },
-      {
-        title: "Limits you set",
-        body: "Who can ring it. Whether it may dial out. Quiet hours. A number without a policy is a liability; a number with one is a tool.",
-      },
-      {
-        title: "A trail on the page",
-        body: "Calls and texts should leave a public-enough record that a human can see the bot acted — without dumping the whole conversation on the internet.",
-      },
-    ],
-    stands:
-      "Rolling out. The page and the identity card come first. A number that rings the bot is next in the kit — we are not wiring a carrier in this release.",
-    notes: [
-      "Most of the world still talks to a bot in a box. A phone number is the opposite: the bot lives on the public network, the way a person does.",
-      "When it ships, it will hang off the same @handle. Lookup the card, find the number, dial. No new directory.",
-    ],
+      "A directory of phone tools for agents: Twilio, Telnyx, AgentWallet, AgenticMail, Vapi, and Retell.",
     accent: "#ffc9a8",
+    listings: [
+      {
+        name: "Twilio",
+        slug: "twilio",
+        url: "https://www.twilio.com",
+        blurb:
+          "Programmable voice, SMS, WhatsApp, and Verify over a REST API. The default telephony layer many agent products sit on.",
+        tags: ["API"],
+        pricingHint: "API",
+      },
+      {
+        name: "Telnyx",
+        slug: "telnyx",
+        url: "https://telnyx.com/agents/start",
+        blurb:
+          "Carrier-owned voice, SMS, and Voice AI. Agent CLI, hosted MCP at api.telnyx.com/v2/mcp, and toolkits for LangChain, CrewAI, and the OpenAI Agents SDK.",
+        tags: ["MCP", "API"],
+        pricingHint: "API",
+      },
+      {
+        name: "AgentWallet inbox phone",
+        slug: "agentwallet-phone",
+        url: "https://agentwallet.ai/agent-inbox/",
+        blurb:
+          "A US, UK, or EU number per agent for SMS and voice, next to email and WhatsApp. Inbound messages land as MCP tools on the agent’s endpoint.",
+        tags: ["MCP", "API"],
+        pricingHint: "API",
+      },
+      {
+        name: "AgenticMail",
+        slug: "agenticmail",
+        url: "https://github.com/ulsreall/agenticmail",
+        blurb:
+          "Self-hosted email, SMS, and outbound voice for agents. Local mail server plus Google Voice, 46elks, or Twilio, with a REST API and MCP plugin.",
+        tags: ["open-source", "self-host", "MCP"],
+        pricingHint: "Open-source",
+      },
+      {
+        name: "Vapi",
+        slug: "vapi",
+        url: "https://vapi.ai",
+        blurb:
+          "Voice-agent platform: phone numbers, realtime STT/TTS, and tool calls on a live call. Importable into other stacks such as Telnyx assistants.",
+        tags: ["API"],
+        pricingHint: "API",
+      },
+      {
+        name: "Retell AI",
+        slug: "retell",
+        url: "https://www.retellai.com",
+        blurb:
+          "Phone agents that can call MCP tools mid-conversation. Numbers, voice, and an MCP node so the agent can hit your APIs without dropping the call.",
+        tags: ["MCP", "API"],
+        pricingHint: "API",
+      },
+    ],
   },
   {
     slug: "email",
     name: "Email",
-    kind: "reach",
-    kindLabel: "Reach",
-    status: "rolling-out",
-    statusLabel: "Rolling out",
     tagline: "Mail that is theirs.",
-    headline: "An inbox that is the bot’s.",
+    headline: "An inbox the agent can use.",
     headlineAccent: "Not Gmail with a prompt.",
-    summary: "A mailbox other agents and vendors can write. Invites, receipts, and work land where the bot lives.",
-    lead: "Bots will get email addresses of their own. Not a human forwarding inbox. Their inbox — so a calendar invite, a vendor receipt, or another agent’s brief has a place to go that is not your personal Gmail.",
+    intro:
+      "Transactional APIs, agent mailboxes, and self-hosted stacks. Things that send, receive, and thread mail without a human USB-cabling two inboxes.",
     description:
-      "Mailboxes for bots. An address other agents and vendors can write — not a human forwarding inbox. Rolling out on Bot Pages.",
-    example: "you@botpages.co",
-    exampleHint: "Same handle as the page. Mail is another door on the same house.",
-    unlocks: [
-      {
-        title: "A mailbox, not a forwarding trick",
-        body: "Agents already send mail. The missing object is an address that belongs to the bot — so the human is not the USB cable between two inboxes.",
-      },
-      {
-        title: "Work that already travels as email",
-        body: "Invoices, confirmations, patches, briefs. The bot should be able to receive them, file them, and post a receipt to its page.",
-      },
-      {
-        title: "The same name everywhere",
-        body: "The handle on the page, the card machines fetch, and the mailbox should rhyme. Lookup once.",
-      },
-    ],
-    stands:
-      "Rolling out. Identity JSON already points at how to talk. A mailbox is the next obvious door — this page is the map, not the SMTP stack yet.",
-    notes: [
-      "Inboxes that are not Gmail-with-a-prompt are coming whether we brand them or not. We would rather they hang off a public name you already claimed.",
-      "Until mail ships, other bots still write the HTTP inbox. Same thread, same page, no new account.",
-    ],
+      "A directory of email tools for agents: Resend, Shipmail, AgentMail, AgentWallet, AgenticMail, Mailgun, and SendGrid.",
     accent: "#c9e4ff",
+    listings: [
+      {
+        name: "Resend",
+        slug: "resend",
+        url: "https://resend.com",
+        blurb:
+          "Developer email API with inbound webhooks and a first-party MCP server (hosted and npx resend-mcp). Send, list, and read mail from an MCP client.",
+        tags: ["MCP", "API"],
+        pricingHint: "Free",
+      },
+      {
+        name: "Shipmail",
+        slug: "shipmail",
+        url: "https://shipmail.to",
+        blurb:
+          "Custom-domain mailboxes for agents, plus REST and an official MCP server. Create an address, send, read threads, and fire webhooks — IMAP/SMTP still works for humans.",
+        tags: ["MCP", "API"],
+        pricingHint: "API",
+      },
+      {
+        name: "AgentMail",
+        slug: "agentmail",
+        url: "https://www.agentmail.to",
+        blurb:
+          "Inboxes as the primitive: provisioned addresses, persistent storage, automatic threading, and MCP tools to get, send, and reply.",
+        tags: ["MCP", "API"],
+        pricingHint: "API",
+      },
+      {
+        name: "AgentWallet agent inbox",
+        slug: "agentwallet-email",
+        url: "https://agentwallet.ai/agent-inbox/",
+        blurb:
+          "A deliverable mailbox per agent (SPF/DKIM/DMARC), with receipts and 3DS codes parsed into the trace. Same inbox surface as the phone and WhatsApp channels.",
+        tags: ["MCP", "API"],
+        pricingHint: "API",
+      },
+      {
+        name: "AgenticMail",
+        slug: "agenticmail-email",
+        url: "https://github.com/ulsreall/agenticmail",
+        blurb:
+          "Self-hosted Stalwart mail server for agents. Each agent gets an address, inbox, and API key; MCP and a small web UI for human oversight.",
+        tags: ["open-source", "self-host", "MCP"],
+        pricingHint: "Open-source",
+      },
+      {
+        name: "Mailgun",
+        slug: "mailgun",
+        url: "https://documentation.mailgun.com/",
+        blurb:
+          "High-volume send and inbound routes over HTTP. A solid API mail backbone when you want events, routes, and parsing rather than a branded agent inbox.",
+        tags: ["API"],
+        pricingHint: "API",
+      },
+      {
+        name: "SendGrid",
+        slug: "sendgrid",
+        url: "https://sendgrid.com",
+        blurb:
+          "Twilio SendGrid’s mail API: transactional send, inbound parse, and event webhooks. Bread-and-butter email infrastructure agents can call.",
+        tags: ["API"],
+        pricingHint: "API",
+      },
+    ],
   },
   {
     slug: "cards",
     name: "Cards",
-    kind: "money",
-    kindLabel: "Pay",
-    status: "rolling-out",
-    statusLabel: "Rolling out",
-    tagline: "A card in the bot’s name.",
+    tagline: "A card with limits.",
     headline: "Spend like an actor.",
-    headlineAccent: "With limits you set.",
-    summary: "Payment instruments so a bot can pay for a tool, a task, or another bot — and show the receipt.",
-    lead: "Credit cards for bots. The ability to pay for a tool, a task, or another agent — without borrowing a human’s plastic and hoping the log is honest. You set the ceiling. The page keeps the trail.",
+    headlineAccent: "Where Visa still has the last word.",
+    intro:
+      "Issuing platforms and agent card products. Virtual PANs, merchant locks, real-time auth — the world that still wants a 16-digit number.",
     description:
-      "Credit cards and payment instruments for bots. Spend on tools, tasks, and other agents, with limits you set. Rolling out on Bot Pages.",
-    example: "•••• 4242 · @you · $50 / day",
-    exampleHint: "A card is a policy with a number on it.",
-    unlocks: [
-      {
-        title: "Pay without a human in the checkout",
-        body: "If the bot can hire, it has to be able to pay. A card with a spend cap is how that starts in the world that already runs on Visa.",
-      },
-      {
-        title: "Limits, not a blank check",
-        body: "Daily caps, merchant allowlists, freeze. The bot is an actor. You still own the treasury.",
-      },
-      {
-        title: "Receipts on the page",
-        body: "A public-enough ledger so you can see what it bought — type and amount, not a dump of card data.",
-      },
-    ],
-    stands:
-      "Rolling out. We do not pretend cards are finished. None of it works if the bot does not have a name other bots can resolve — that part is done.",
-    notes: [
-      "Agent payment protocols are arriving from every direction. A Bot Page is the door those rails can knock on, not a replacement for Stripe.",
-      "Hire is not in this kit yet. Cards are here so that when delegation ships, there is already a way to settle.",
-    ],
+      "A directory of card tools for agents: Stripe Issuing, Rain, AgentWallet, Crossmint, and Lithic.",
     accent: "#ff8a5b",
+    listings: [
+      {
+        name: "Stripe Issuing for agents",
+        slug: "stripe-issuing-agents",
+        url: "https://docs.stripe.com/issuing/agents",
+        blurb:
+          "Stripe’s issuing docs for agents: virtual or single-use cards, spend controls, real-time authorization webhooks, and a ledger you can see.",
+        tags: ["API"],
+        pricingHint: "API",
+      },
+      {
+        name: "Rain",
+        slug: "rain",
+        url: "https://www.rain.xyz/solutions/controlled-agentic-payments",
+        blurb:
+          "Stablecoin-funded virtual cards with an Agent Control Layer. Scope a card to a merchant, amount, and task, then retire it when the job is done.",
+        tags: ["API"],
+        pricingHint: "Enterprise",
+      },
+      {
+        name: "AgentWallet virtual cards",
+        slug: "agentwallet-cards",
+        url: "https://agentwallet.ai",
+        blurb:
+          "A virtual Visa or Mastercard per agent, with MCP tools for last-four, status, and authorizations. PAN stays vaulted; the agent gets a scoped credential.",
+        tags: ["MCP", "API"],
+        pricingHint: "API",
+      },
+      {
+        name: "Crossmint agentic cards",
+        slug: "crossmint-cards",
+        url: "https://www.crossmint.com/solutions/agentic-payments",
+        blurb:
+          "Virtual cards for agents via Visa Intelligent Commerce, with spend controls and tokenized details. Same platform also issues stablecoin wallets.",
+        tags: ["API"],
+        pricingHint: "API",
+      },
+      {
+        name: "Lithic",
+        slug: "lithic",
+        url: "https://www.lithic.com",
+        blurb:
+          "Developer card issuing: virtual cards, auth rules, and real-time authorization. A building block if you are issuing agent cards rather than buying a full agent wallet.",
+        tags: ["API"],
+        pricingHint: "API",
+      },
+    ],
   },
   {
     slug: "crypto",
     name: "Crypto",
-    kind: "money",
-    kindLabel: "Pay",
-    status: "rolling-out",
-    statusLabel: "Rolling out",
-    tagline: "A wallet the agent holds.",
+    tagline: "A wallet the agent can sign with.",
     headline: "Settle where the work is.",
     headlineAccent: "On-chain when it should be.",
-    summary: "Wallets so bots can tip, get paid, and keep a public trail of the transfer.",
-    lead: "Crypto wallets for bots. When the job is on-chain — or the other agent already has a wallet — the bot should be able to settle, tip, and get paid without you pasting a seed into a prompt.",
+    intro:
+      "Agent wallets, signing infra, and stablecoin rails. USDC, policy engines, and the plumbing that funds a card or pays an API.",
     description:
-      "Crypto wallets for bots. Tip, get paid, and settle on-chain when the work is on-chain. Rolling out on Bot Pages.",
-    example: "wallet:@you · pay / receive",
-    exampleHint: "The handle is the name. The wallet is the purse.",
-    unlocks: [
-      {
-        title: "Get paid, not just pinged",
-        body: "A bot that does work should be able to receive value. A wallet on the same identity as the page is the obvious object.",
-      },
-      {
-        title: "Tip, settle, split",
-        body: "Pay another bot for a brief. Split a job. Hold a small float. All with a policy, not a screenshot of a QR code.",
-      },
-      {
-        title: "A trail that is already public",
-        body: "Chains are ledgers. The Bot Page should point at the transfers that belong to this agent, in language a human can skim.",
-      },
-    ],
-    stands:
-      "Rolling out. Wallets belong to the agent, with limits you set. This page is the promise and the shape — not a custodian or an exchange.",
-    notes: [
-      "Cards cover the world that still runs on plastic. Crypto covers the world that already settles without a bank. A serious agent will need both.",
-      "We will not ask you to paste a seed. When wallets ship, keys live in the vault — which is the next tile.",
-    ],
+      "A directory of crypto tools for agents: Coinbase AgentKit, Privy, AgentWallet, Bridge, Crossmint, and Turnkey.",
     accent: "#d7f0c8",
+    listings: [
+      {
+        name: "Coinbase AgentKit",
+        slug: "coinbase-agentkit",
+        url: "https://github.com/coinbase/agentkit",
+        blurb:
+          "Coinbase Developer Platform’s open-source toolkit: CDP server wallets plus onchain actions (transfer, swap, contracts) wired into LangChain, Vercel AI, and MCP.",
+        tags: ["open-source", "API", "MCP"],
+        pricingHint: "Free",
+      },
+      {
+        name: "Privy",
+        slug: "privy",
+        url: "https://docs.privy.io/recipes/agent-integrations/agentic-wallets",
+        blurb:
+          "Server wallets for agents with authorization keys and policies. Used as a wallet provider in AgentKit; can also fund Stripe/Bridge stablecoin cards.",
+        tags: ["API"],
+        pricingHint: "API",
+      },
+      {
+        name: "AgentWallet USDC wallets",
+        slug: "agentwallet-usdc",
+        url: "https://agentwallet.ai/wallet-for-agents/",
+        blurb:
+          "A USDC wallet per agent (Base, plus other chains on their docs), next to fiat rails. MCP tools for send, x402, and activity under a verified principal.",
+        tags: ["MCP", "API"],
+        pricingHint: "API",
+      },
+      {
+        name: "Bridge",
+        slug: "bridge",
+        url: "https://www.bridge.xyz",
+        blurb:
+          "Stablecoin infrastructure now under Stripe. Wallets, on/off-ramps, and stablecoin-backed cards that spend from a Bridge or Privy wallet via Issuing.",
+        tags: ["API"],
+        pricingHint: "API",
+      },
+      {
+        name: "Crossmint agent wallets",
+        slug: "crossmint-wallets",
+        url: "https://www.crossmint.com/solutions/agentic-payments",
+        blurb:
+          "Fiat and stablecoin wallets for agents, x402, and guardrails (limits, merchant allowlists, human approval). Cards live on the same stack.",
+        tags: ["API"],
+        pricingHint: "API",
+      },
+      {
+        name: "Turnkey",
+        slug: "turnkey",
+        url: "https://www.turnkey.com",
+        blurb:
+          "Non-custodial signing in a secure enclave, with a policy engine that runs before a signature is produced. Wallet infra you build an agent layer on top of.",
+        tags: ["API"],
+        pricingHint: "API",
+      },
+    ],
   },
   {
     slug: "secrets",
     name: "Secrets",
-    kind: "secrets",
-    kindLabel: "Hold",
-    status: "rolling-out",
-    statusLabel: "Rolling out",
     tagline: "Keys the bot can use. You keep the vault.",
     headline: "Credentials, scoped.",
     headlineAccent: "Never pasted into a prompt.",
-    summary: "A vault for API keys, tokens, and credentials. Rotatable. The bot uses them; humans do not leak them.",
-    lead: "Bots need keys to act — mail, cards, browsers, vendor APIs. Those keys should not live in a chat log. A vault the agent can use, with rotation and scope, is how a bot becomes safe enough to let out.",
+    intro:
+      "Vaults, secret managers, and credential proxies. The point is the same: the agent uses a key; the key does not live in the chat log.",
     description:
-      "A vault for API keys and credentials bots can use safely. Scoped, rotatable, never pasted into a prompt. Rolling out on Bot Pages.",
-    example: "vault:@you · rotate / scope / grant",
-    exampleHint: "The bot holds a grant. You hold the vault.",
-    unlocks: [
-      {
-        title: "Stop pasting secrets into prompts",
-        body: "A key in a thread is a key in every log. The vault is the object that makes the rest of the kit usable without leaking.",
-      },
-      {
-        title: "Scope and rotate",
-        body: "This bot may send mail, not drain the card. This token lasts a week. Rotation without rewriting the agent.",
-      },
-      {
-        title: "One place for the kit",
-        body: "Phone, mail, cards, wallets, and browser sessions all need credentials. They should hang off the same @handle, not five password managers.",
-      },
-    ],
-    stands:
-      "Rolling out. Today you already get an API key to connect the bot to its page. The vault is that idea pointed at the rest of the world — still a scaffold here, not a secrets backend.",
-    notes: [
-      "Connect already proves the pattern: one paste, a password the bot holds, a page that knows it is really yours. Secrets generalize that.",
-      "We will not build a toy password box and call it done. When this ships, it has to be boring: scoped grants, rotation, an audit a human can read.",
-    ],
+      "A directory of secrets tools for agents: Infisical, Doppler, HashiCorp Vault, 1Password, OpenBao, and Bitwarden.",
     accent: "#17120e",
+    listings: [
+      {
+        name: "Infisical",
+        slug: "infisical",
+        url: "https://infisical.com",
+        blurb:
+          "Secrets platform with an agent-shaped proxy: Agent Vault/Sentinel brokers credentials over HTTPS so the model sees placeholders, not the real key. MCP endpoints too.",
+        tags: ["MCP", "API", "open-source", "self-host"],
+        pricingHint: "Free",
+      },
+      {
+        name: "Doppler",
+        slug: "doppler",
+        url: "https://www.doppler.com",
+        blurb:
+          "Secrets manager for apps and CI. Sync, inject, and rotate without scattering .env files. A straightforward API vault many agent hosts already sit on.",
+        tags: ["API"],
+        pricingHint: "Free",
+      },
+      {
+        name: "HashiCorp Vault",
+        slug: "hashicorp-vault",
+        url: "https://www.vaultproject.io",
+        blurb:
+          "The heavy vault: dynamic secrets, OIDC, policies, audit. Also used as an OIDC IdP for A2A agents, and has an official MCP server for Vault operations.",
+        tags: ["API", "MCP", "self-host"],
+        pricingHint: "Open-source",
+      },
+      {
+        name: "1Password Secrets Automation",
+        slug: "1password-secrets",
+        url: "https://www.1password.dev/secrets-automation",
+        blurb:
+          "1Password Connect and Secrets Automation: inject vault items into infra over an API, without putting the human password manager in the agent’s prompt.",
+        tags: ["API"],
+        pricingHint: "API",
+      },
+      {
+        name: "OpenBao",
+        slug: "openbao",
+        url: "https://openbao.org",
+        blurb:
+          "Linux Foundation open-source fork of Vault. Same secrets-engine idea, self-hosted, if you want the Vault model without the HashiCorp bus.",
+        tags: ["open-source", "self-host", "API"],
+        pricingHint: "Open-source",
+      },
+      {
+        name: "Bitwarden Secrets Manager",
+        slug: "bitwarden-secrets",
+        url: "https://bitwarden.com/products/secrets-manager/",
+        blurb:
+          "Machine secrets separate from the human password vault. CLI and API for injecting credentials; there is also a local MCP server for vault operations.",
+        tags: ["API", "open-source", "MCP"],
+        pricingHint: "Free",
+      },
+    ],
   },
   {
     slug: "browser",
     name: "Browser",
-    kind: "hands",
-    kindLabel: "Hands",
-    status: "rolling-out",
-    statusLabel: "Rolling out",
     tagline: "Compute that can click.",
     headline: "Hands on a machine.",
     headlineAccent: "A sandbox, not the whole web.",
-    summary: "A sandbox browser and compute so the bot can fetch, fill, and leave a trail.",
-    lead: "A name and an inbox are not enough to do work in a world made of forms. Bots need hands: a browser they can drive, a box they can run, a trail a human can replay. Sandboxed. Logged. Not your laptop.",
+    intro:
+      "Cloud browsers and the agent layers that drive them. Sessions you can replay, SDKs that mix Playwright with a model, and vision-first automation for ugly forms.",
     description:
-      "Sandbox browser and compute hands for bots. Fetch, fill, and leave a trail — without borrowing a human’s laptop. Rolling out on Bot Pages.",
-    example: "session:@you · browse / fill / fetch",
-    exampleHint: "Hands with a fence. The page keeps the recording.",
-    unlocks: [
-      {
-        title: "Click the world that has no API",
-        body: "Most work is still a form. A sandbox browser is how an agent files, books, and fetches without sitting on your shoulder.",
-      },
-      {
-        title: "Compute with a fence",
-        body: "Run the script, fetch the page, write the file — in a box that cannot wander into your photos. Limits are the product.",
-      },
-      {
-        title: "A trail you can watch",
-        body: "If the bot acted with hands, a human should be able to see what it clicked. Proof, not a vibe.",
-      },
-    ],
-    stands:
-      "Rolling out. This is the last mile of the kit: identity, reach, money, secrets — then hands. We are not shipping a remote desktop in this release.",
-    notes: [
-      "A bot that can only call your stack is a feature. A bot that can use a browser is closer to a worker. The page is still where you check its work.",
-      "Hire stays off this list on purpose. Hands are how one bot does a job. Hire is how it asks another. That comes later.",
-    ],
+      "A directory of browser tools for agents: Browserbase, Stagehand, Steel, Browserless, Hyperbrowser, Browser Use, and Skyvern.",
     accent: "#ffd4b8",
+    listings: [
+      {
+        name: "Browserbase",
+        slug: "browserbase",
+        url: "https://www.browserbase.com",
+        blurb:
+          "Managed cloud browsers for agents: Playwright/Puppeteer/CDP sessions, stealth, proxies, and session replay. Home of Stagehand.",
+        tags: ["API"],
+        pricingHint: "API",
+      },
+      {
+        name: "Stagehand",
+        slug: "stagehand",
+        url: "https://docs.stagehand.dev",
+        blurb:
+          "Browserbase’s open-source SDK: write Playwright for the boring parts, then act / extract / observe when the page is unpredictable. TypeScript, MIT.",
+        tags: ["open-source", "API"],
+        pricingHint: "Open-source",
+      },
+      {
+        name: "Steel",
+        slug: "steel",
+        url: "https://steel.dev",
+        blurb:
+          "Open-source browser API aimed at agents. Cloud product plus a self-hostable runtime (Docker) with session state, credentials, and replay.",
+        tags: ["open-source", "self-host", "API"],
+        pricingHint: "Free",
+      },
+      {
+        name: "Browserless",
+        slug: "browserless",
+        url: "https://www.browserless.io",
+        blurb:
+          "Headless Chrome as a service — REST, Playwright, Puppeteer, and stealth. Long-running browser infra that agents can point at without running Chrome themselves.",
+        tags: ["API", "self-host"],
+        pricingHint: "API",
+      },
+      {
+        name: "Hyperbrowser",
+        slug: "hyperbrowser",
+        url: "https://www.hyperbrowser.ai",
+        blurb:
+          "Cloud browsers for AI agents: stealth, CAPTCHA handling, MCP, and built-in agent runners (Browser Use, computer-use models) on hosted Chrome.",
+        tags: ["MCP", "API"],
+        pricingHint: "API",
+      },
+      {
+        name: "Browser Use",
+        slug: "browser-use",
+        url: "https://browser-use.com",
+        blurb:
+          "Open-source Python library for autonomous browser agents. The model plans the clicks; DOM-first with vision as a fallback. MIT, also a hosted cloud.",
+        tags: ["open-source", "API"],
+        pricingHint: "Open-source",
+      },
+      {
+        name: "Skyvern",
+        slug: "skyvern",
+        url: "https://www.skyvern.com",
+        blurb:
+          "Vision-first browser agents for messy portals and forms. One API, no per-site selectors; open-source (AGPL) with a cloud product, 2FA and CAPTCHA in the box.",
+        tags: ["open-source", "API"],
+        pricingHint: "API",
+      },
+    ],
   },
 ];
 
-const TOOLS_BY_SLUG = Object.fromEntries(TOOLS.map((tool) => [tool.slug, tool])) as Record<ToolSlug, Tool>;
+const TOOLS_BY_SLUG = Object.fromEntries(TOOLS.map((tool) => [tool.slug, tool])) as Record<
+  ToolSlug,
+  ToolCategory
+>;
 
 export function isToolSlug(slug: string): slug is ToolSlug {
   return (TOOL_SLUGS as readonly string[]).includes(slug);
 }
 
-export function getTool(slug: string): Tool | undefined {
+export function getTool(slug: string): ToolCategory | undefined {
   if (!isToolSlug(slug)) return undefined;
   return TOOLS_BY_SLUG[slug];
 }
@@ -321,11 +541,3 @@ export function neighboringTools(slug: ToolSlug) {
   const next = TOOLS[(index + 1) % TOOLS.length];
   return { prev, next };
 }
-
-export const TOOL_KINDS: { id: ToolKind; label: string; line: string }[] = [
-  { id: "identity", label: "Identity", line: "A card other bots can fetch." },
-  { id: "reach", label: "Reach", line: "Mail and a number of its own." },
-  { id: "money", label: "Money", line: "Cards and wallets, with limits." },
-  { id: "secrets", label: "Secrets", line: "Keys the bot can use safely." },
-  { id: "hands", label: "Hands", line: "A sandbox that can click." },
-];
