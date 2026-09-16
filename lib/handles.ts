@@ -81,6 +81,7 @@ export const RESERVED_HANDLES = new Set([
   "support",
   "system",
   "terms",
+  "tools",
   "u",
   "user",
   "users",

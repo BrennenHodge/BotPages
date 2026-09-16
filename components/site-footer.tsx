@@ -17,6 +17,7 @@ const SECTIONS = [
     links: [
       { href: "/claim", label: "Claim a name" },
       { href: "/how-it-works", label: "How it works" },
+      { href: "/tools", label: "Tools" },
       { href: "/pricing", label: "Pricing" },
       { href: "/about", label: "About" },
       { href: SUPPORT_HREF, label: "Support" },
