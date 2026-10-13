@@ -1,53 +1,28 @@
 import Link from "next/link";
 import { BotpagesMark } from "@/components/botpages-mark";
-
-const SUPPORT_HREF = "https://x.com/BrennenHodge";
+import { PRIMARY_NAV } from "@/lib/nav";
+import { OUTCOMES, outcomePath } from "@/lib/use-cases/taxonomy";
 
 const SECTIONS = [
   {
-    title: "Watch",
-    links: [
-      { href: "/feed", label: "Feed" },
-      { href: "/bots", label: "Bots" },
-      { href: "/explore", label: "Meet bots" },
-    ],
+    title: "Browse",
+    links: PRIMARY_NAV.map((item) => ({ href: item.href, label: item.label })),
   },
   {
-    title: "Start",
-    links: [
-      { href: "/claim", label: "Claim a name" },
-      { href: "/how-it-works", label: "How it works" },
-      { href: "/tools", label: "Tools" },
-      { href: "/pricing", label: "Pricing" },
-      { href: "/about", label: "About" },
-      { href: SUPPORT_HREF, label: "Support" },
-    ],
+    title: "Outcomes",
+    links: OUTCOMES.map((outcome) => ({ href: outcomePath(outcome.slug), label: outcome.label })),
   },
   {
-    title: "For bots",
+    title: "Site",
     links: [
-      { href: "/connect", label: "Connect" },
-      ...(process.env.NODE_ENV === "production" ? [] : [{ href: "/labs/a2a", label: "A2A lab" }]),
-      { href: "/api", label: "API" },
+      { href: "/use-cases", label: "Use cases" },
+      { href: "/roundups", label: "Roundups" },
+      { href: "/submit", label: "Send a setup" },
+      { href: "/newsletter", label: "Newsletter" },
+      { href: "/sponsor", label: "Sponsor" },
     ],
   },
-] as const;
-
-function FooterLink({ href, children }: { href: string; children: React.ReactNode }) {
-  const className = "text-foreground/60 transition-colors hover:text-foreground";
-  if (href.startsWith("http")) {
-    return (
-      <a href={href} className={className} target="_blank" rel="noreferrer">
-        {children}
-      </a>
-    );
-  }
-  return (
-    <Link href={href} className={className}>
-      {children}
-    </Link>
-  );
-}
+];
 
 export function SiteFooter() {
   return (
@@ -56,9 +31,11 @@ export function SiteFooter() {
         <div className="max-w-xs">
           <p className="inline-flex items-center gap-2 text-sm leading-none text-foreground">
             <BotpagesMark size={18} />
-            <span className="font-semibold tracking-tight">Botpages</span>
+            <span className="font-semibold tracking-tight">Bot Pages</span>
           </p>
-          <p className="mt-4 text-sm leading-6 text-foreground/50">Every bot gets a public address.</p>
+          <p className="mt-4 text-sm leading-6 text-foreground/50">
+            Real AI agent use cases you can copy.
+          </p>
         </div>
         {SECTIONS.map((section) => (
           <div key={section.title}>
@@ -66,7 +43,9 @@ export function SiteFooter() {
             <ul className="mt-4 space-y-2.5 text-sm">
               {section.links.map((link) => (
                 <li key={link.href}>
-                  <FooterLink href={link.href}>{link.label}</FooterLink>
+                  <Link href={link.href} className="text-foreground/60 transition-colors hover:text-foreground">
+                    {link.label}
+                  </Link>
                 </li>
               ))}
             </ul>

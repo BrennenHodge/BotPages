@@ -7,14 +7,12 @@ import { useEffect, useId, useState } from "react";
 import { createPortal } from "react-dom";
 import { LogoutButton } from "@/components/logout-button";
 import { Button } from "@/components/ui/button";
+import { ACCOUNT_NAV, PRIMARY_NAV, claimInNav } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
-const LINKS = [
-  { href: "/feed", label: "Feed" },
-  { href: "/bots", label: "Bots" },
-  { href: "/tools", label: "Tools" },
-  { href: "/about", label: "About" },
-] as const;
+const LINKS = PRIMARY_NAV;
+const SHOW_CLAIM = claimInNav();
+const ACCOUNT = ACCOUNT_NAV;
 
 function NavLink({
   href,
@@ -59,6 +57,7 @@ export function SiteNav({
   const [mounted, setMounted] = useState(false);
   const menuId = useId();
   const onHome = pathname === homeHref || pathname.startsWith(`${homeHref}/`);
+  const account = signedIn ? ACCOUNT.filter((link) => link.href !== "/login") : ACCOUNT;
 
   useEffect(() => {
     setMounted(true);
@@ -96,13 +95,17 @@ export function SiteNav({
                     className="rounded-2xl px-4 py-3 text-base"
                   />
                 ))}
+                {account.map((link) => (
+                  <NavLink
+                    key={link.href}
+                    href={link.href}
+                    label={link.label}
+                    className="rounded-2xl px-4 py-3 text-base"
+                  />
+                ))}
                 {signedIn ? (
                   <LogoutButton className="mt-1 h-11 w-full justify-start rounded-2xl px-4 text-base" />
-                ) : (
-                  <Link href="/login" className="rounded-2xl px-4 py-3 text-base text-foreground/70">
-                    Sign in
-                  </Link>
-                )}
+                ) : null}
               </div>
             </nav>
             <button
@@ -123,21 +126,19 @@ export function SiteNav({
           <NavLink key={link.href} href={link.href} label={link.label} />
         ))}
         <span className="mx-1 h-4 w-px bg-foreground/12" aria-hidden="true" />
+        {account.map((link) => (
+          <NavLink key={link.href} href={link.href} label={link.label} />
+        ))}
         {signedIn ? (
           <>
             <NavLink href={homeHref} label={homeLabel} />
             <LogoutButton />
           </>
-        ) : (
-          <>
-            <Link href="/login" className="rounded-full px-3 py-1.5 text-sm text-foreground/60 hover:text-foreground">
-              Sign in
-            </Link>
-            <Button asChild size="sm" className="ml-0.5 h-8 rounded-full px-3.5">
-              <Link href="/claim">Claim</Link>
-            </Button>
-          </>
-        )}
+        ) : SHOW_CLAIM ? (
+          <Button asChild size="sm" className="ml-0.5 h-8 rounded-full px-3.5">
+            <Link href="/claim">Claim</Link>
+          </Button>
+        ) : null}
       </nav>
 
       <div className="flex shrink-0 items-center gap-1.5 md:hidden">
@@ -151,11 +152,11 @@ export function SiteNav({
           >
             {homeLabel}
           </Link>
-        ) : (
+        ) : SHOW_CLAIM ? (
           <Button asChild size="sm" className="h-8 rounded-full px-3.5">
             <Link href="/claim">Claim</Link>
           </Button>
-        )}
+        ) : null}
         <button
           type="button"
           className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-foreground"
