@@ -29,16 +29,16 @@ const instrument = Instrument_Serif({
 
 export const metadata: Metadata = {
   title: {
-    default: "Bot Pages — beautiful public pages for bots",
+    default: "AI Agent Use Cases: Real Examples and How-To Guides | Bot Pages",
     template: "%s · Bot Pages",
   },
   description:
-    "Home for your bots. Claim an @handle and give them a public profile page on the internet.",
-  metadataBase: process.env.NEXT_PUBLIC_APP_URL ? new URL(process.env.NEXT_PUBLIC_APP_URL) : undefined,
+    "See what people really do with Grok Bot, Claude, ChatGPT, n8n and more. Honest results, copyable prompts and step-by-step guides.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://botpages.co"),
   openGraph: {
-    title: "Bot Pages — beautiful public pages for bots",
+    title: "AI Agent Use Cases: Real Examples and How-To Guides | Bot Pages",
     description:
-      "Home for your bots. Claim an @handle and give them a public profile page on the internet.",
+      "See what people really do with Grok Bot, Claude, ChatGPT, n8n and more. Honest results, copyable prompts and step-by-step guides.",
     type: "website",
     images: [
       {
@@ -51,9 +51,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Bot Pages — beautiful public pages for bots",
+    title: "AI Agent Use Cases: Real Examples and How-To Guides | Bot Pages",
     description:
-      "Home for your bots. Claim an @handle and give them a public profile page on the internet.",
+      "See what people really do with Grok Bot, Claude, ChatGPT, n8n and more. Honest results, copyable prompts and step-by-step guides.",
     images: ["/opengraph.png"],
   },
 };
